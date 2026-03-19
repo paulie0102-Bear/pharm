@@ -210,10 +210,168 @@
             padding: 20px 10px;
             text-align: center;
         }
+        /* 題庫清單樣式 */
+.bank-header {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.upload-label {
+    background: var(--btn-blue);
+    color: white;
+    padding: 12px;
+    border-radius: 15px;
+    text-align: center;
+    font-weight: bold;
+    cursor: pointer;
+    display: block;
+}
+
+.file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.file-item {
+    background: white;
+    border: 2px solid #EEE;
+    border-radius: 15px;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.file-info {
+    flex: 1;
+}
+
+.file-title {
+    font-weight: bold;
+    color: var(--text-color);
+    display: block;
+}
+
+.file-date {
+    font-size: 0.75rem;
+    color: #AAA;
+}
+
+.delete-btn {
+    background: #FF8A80;
+    color: white;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    margin-left: 10px;
+}
+        
     </style>
 </head>
 <body>
+// 題庫資料陣列，從本地儲存讀取
+let questionBanks = JSON.parse(localStorage.getItem('myQuestionBanks')) || [];
 
+function openModal(type) {
+    const modal = document.getElementById('full-modal');
+    const title = document.getElementById('modal-title');
+    const content = document.getElementById('modal-content');
+    
+    if(type === 'bank') {
+        title.innerText = "題庫管理";
+        renderBankList(content);
+    } else if(type === 'seed') {
+        // ... 原本的種子邏輯 ...
+    } else {
+        title.innerText = type.toUpperCase();
+        content.innerHTML = `<div style="text-align:center; padding-top:50px;">這是 ${type} 的介面</div>`;
+    }
+    modal.classList.add('active');
+}
+
+// 渲染題庫列表
+function renderBankList(container) {
+    let listHtml = `
+        <div class="bank-header">
+            <label class="upload-label">
+                📂 匯入阿摩 HTML 題庫
+                <input type="file" id="fileInput" accept=".html" style="display:none" onchange="handleFileUpload(event)">
+            </label>
+        </div>
+        <div class="file-list" id="bankItems">
+    `;
+
+    if (questionBanks.length === 0) {
+        listHtml += `<div style="text-align:center; color:#CCC; padding:40px;">目前沒有題庫。</div>`;
+    } else {
+        questionBanks.forEach((bank, index) => {
+            listHtml += `
+                <div class="file-item">
+                    <div class="file-info">
+                        <span class="file-title">📘 ${bank.title}</span>
+                        <span class="file-date">共 ${bank.count || 0} 題 | 上傳日：${bank.date}</span>
+                    </div>
+                    <button class="delete-btn" onclick="deleteBank(${index})">刪除</button>
+                </div>
+            `;
+        });
+    }
+    listHtml += `</div>`;
+    container.innerHTML = listHtml;
+}
+    
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content, 'text/html');
+
+        // --- 優化標題抓取 ---
+        // 優先找阿摩的「考試名稱」區塊，找不到再找 <title>，最後才是檔名
+        const amolTitle = doc.querySelector('.MuiTypography-pageTitleSmall')?.innerText;
+        const htmlTitle = doc.querySelector('title')?.innerText;
+        const fileTitle = (amolTitle || htmlTitle || file.name).replace('考試名稱：', '').trim();
+
+        // --- 解析題目數量 (選擇性功能) ---
+        const questionCount = doc.querySelectorAll('.border-b.border-gray-200').length;
+
+        const newBank = {
+            id: Date.now(),
+            title: fileTitle,
+            count: questionCount, // 記錄題數
+            content: content,
+            date: new Date().toLocaleDateString()
+        };
+
+        questionBanks.push(newBank);
+        saveAndRefresh();
+    };
+    reader.readAsText(file);
+}
+
+// 刪除題庫
+function deleteBank(index) {
+    if (confirm('確定要刪除這個題庫嗎？')) {
+        questionBanks.splice(index, 1);
+        saveAndRefresh();
+    }
+}
+
+// 儲存至本地並重新整理介面
+function saveAndRefresh() {
+    localStorage.setItem('myQuestionBanks', JSON.stringify(questionBanks));
+    const content = document.getElementById('modal-content');
+    renderBankList(content);
+}
     <div class="game-scene">
         <div class="cloud c1"></div>
         <div class="cloud c2"></div>
