@@ -1,1 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Secret Garden - 答題冒險</title>
+    <style>
+        :root {
+            --sky-blue: #87CEEB;
+            --grass-green: #90EE90;
+            --nav-bg: rgba(255, 255, 255, 0.9);
+            --btn-color: #FFB6C1; /* 嫩粉色 */
+            --text-color: #5D4037;
+        }
 
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--sky-blue);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* 藍天白雲場景區 */
+        .game-scene {
+            flex: 1;
+            position: relative;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        /* 簡單的雲朵 */
+        .cloud {
+            position: absolute;
+            background: white;
+            width: 100px;
+            height: 40px;
+            border-radius: 50px;
+            top: 10%;
+            left: 10%;
+            opacity: 0.8;
+            box-shadow: 10px 10px 20px rgba(0,0,0,0.05);
+        }
+
+        /* 花圃區 */
+        .garden-bed {
+            width: 90%;
+            height: 150px;
+            background: #8D6E63; /* 土壤顏色 */
+            border: 8px solid #A1887F;
+            border-radius: 30px 30px 0 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            padding-bottom: 20px;
+            position: relative;
+        }
+
+        .flower-pot {
+            font-size: 2rem; /* 用 Emoji 暫代花朵 */
+            filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.2));
+        }
+
+        /* 底部雙層導覽列 */
+        nav {
+            background: var(--nav-bg);
+            backdrop-filter: blur(10px);
+            border-top: 2px solid #EEE;
+            padding: 15px 10px;
+            /* 核心：處理手機安全區域，避免誤觸 */
+            padding-bottom: calc(15px + env(safe-area-inset-bottom));
+        }
+
+        .nav-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .nav-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .nav-btn {
+            background: white;
+            border: 2px solid var(--btn-color);
+            border-radius: 15px;
+            padding: 10px 5px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-color);
+            font-weight: bold;
+            box-shadow: 0 4px 0 var(--btn-color);
+            transition: all 0.1s;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .nav-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 var(--btn-color);
+        }
+
+        .icon {
+            display: block;
+            font-size: 1.2rem;
+            margin-bottom: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-scene">
+        <div class="cloud" style="top: 15%; left: 15%;"></div>
+        <div class="cloud" style="top: 10%; left: 60%; width: 120px;"></div>
+        
+        <div class="garden-bed">
+            <div class="flower-pot">🌷</div>
+            <div class="flower-pot">🌻</div>
+            <div class="flower-pot">🌸</div>
+            <div class="flower-pot">🌱</div>
+        </div>
+    </div>
+
+    <nav>
+        <div class="nav-row">
+            <div class="nav-btn"><span class="icon">🎒</span>背包</div>
+            <div class="nav-btn"><span class="icon">🛒</span>商店</div>
+            <div class="nav-btn" style="background: #FFF9C4;"><span class="icon">📝</span>答題</div>
+            <div class="nav-btn"><span class="icon">👤</span>玩家</div>
+        </div>
+        <div class="nav-row">
+            <div class="nav-btn"><span class="icon">📄</span>考卷</div>
+            <div class="nav-btn"><span class="icon">📚</span>題庫</div>
+            <div class="nav-btn"><span class="icon">❌</span>錯題</div>
+            <div class="nav-btn"><span class="icon">⚙️</span>設定</div>
+        </div>
+    </nav>
+
+</body>
+</html>
