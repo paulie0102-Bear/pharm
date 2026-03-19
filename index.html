@@ -326,29 +326,36 @@ try {
     questionBanks = [];
 }
 
-// 2. 強化版的 openModal
 function openModal(type) {
     const modal = document.getElementById('full-modal');
     const title = document.getElementById('modal-title');
     const content = document.getElementById('modal-content');
+    
+    if (!modal || !content) return;
 
-    // 如果找不到容器，在控制台報錯
-    if (!modal || !content) {
-        console.error("找不到 Modal 元素，請檢查 HTML ID 是否正確");
-        return;
-    }
-
-    // 先清空內容，確保乾淨
+    // 清空舊內容
     content.innerHTML = '';
 
     if (type === 'bank') {
+        // --- 題庫管理邏輯 ---
         title.innerText = "題庫管理";
-        // 傳入 content 進行渲染
         renderBankList(content);
     } else if (type === 'seed') {
-        title.innerText = "種子商店";
-        content.innerHTML = `<div style="text-align:center; padding:50px;">🌱 種子開發中...</div>`;
+        // --- 種子選擇邏輯 ---
+        title.innerText = "選擇種子";
+        let html = '<div class="seed-grid">';
+        seedData.forEach(s => {
+            html += `
+            <div class="seed-card" onclick="plantSeed('${s.i}'); closeModal();">
+                <span style="font-size:3rem;">${s.i}</span>
+                <div style="font-weight:bold; margin-top:5px;">${s.n}</div>
+                <div style="font-size:0.8rem; color:#888;">擁有：${s.c}</div>
+            </div>`;
+        });
+        html += '</div>';
+        content.innerHTML = html;
     } else {
+        // --- 其他預設邏輯 ---
         title.innerText = type.toUpperCase();
         content.innerHTML = `<div style="text-align:center; padding-top:50px;">這是 ${type} 的介面</div>`;
     }
@@ -452,31 +459,7 @@ function saveAndRefresh() {
             // 這裡未來可以加入土丘顏色變深或出現水滴動畫的邏輯
         }
 
-        function openModal(type) {
-            const modal = document.getElementById('full-modal');
-            const title = document.getElementById('modal-title');
-            const content = document.getElementById('modal-content');
-            
-            if(type === 'seed') {
-                title.innerText = "選擇種子";
-                let html = '<div class="seed-grid">';
-                seedData.forEach(s => {
-                    html += `
-                    <div class="seed-card" onclick="plantSeed('${s.i}'); closeModal();">
-                        <span style="font-size:3rem;">${s.i}</span>
-                        <div style="font-weight:bold; margin-top:5px;">${s.n}</div>
-                        <div style="font-size:0.8rem; color:#888;">擁有：${s.c}</div>
-                    </div>`;
-                });
-                html += '</div>';
-                content.innerHTML = html;
-            } else {
-                title.innerText = type.toUpperCase();
-                content.innerHTML = `<div style="text-align:center; padding-top:50px;">這是 ${type} 的介面</div>`;
-            }
-            modal.classList.add('active');
-        }
-
+    
         function plantSeed(img) {
             document.getElementById('garden-soil').innerHTML = `<span style="font-size:3.5rem; transform:translateY(-25px);">${img}</span>`;
         }
