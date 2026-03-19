@@ -381,19 +381,21 @@ function openModal(type) {
         title.innerText = "我的背包";
     renderBackpack(content);
     } else if (type === 'seed') {
-        // --- 種子選擇邏輯 ---
         title.innerText = "選擇種子";
-        let html = '<div class="seed-grid">';
-        seedData.forEach(s => {
+        let html = '<div class="seed-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:10px;">';
+        
+        // 使用 index 來追蹤點選的是哪一個
+        seedData.forEach((s, index) => {
             html += `
-            <div class="seed-card" onclick="plantSeed('${s.i}'); closeModal();">
+            <div class="seed-card" onclick="plantSeed(${index})" style="background:white; padding:15px; border-radius:15px; border:1px solid #EEE; text-align:center; cursor:pointer;">
                 <span style="font-size:3rem;">${s.i}</span>
                 <div style="font-weight:bold; margin-top:5px;">${s.n}</div>
-                <div style="font-size:0.8rem; color:#888;">擁有：${s.c}</div>
+                <div style="font-size:0.8rem; color:#888;">難度：${s.c}</div>
             </div>`;
         });
         html += '</div>';
         content.innerHTML = html;
+    }
     } else {
         // --- 其他預設邏輯 ---
         title.innerText = type.toUpperCase();
