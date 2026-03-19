@@ -5,7 +5,8 @@
     {
       "src": "icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable" 
     },
     {
       "src": "icon-512.png",
@@ -13,9 +14,9 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": "index.html",
-  "background_color": "#E3F2FD",
+  "start_url": "./index.html",
   "display": "standalone",
-  "scope": "/",
-  "theme_color": "#4CAF50"
+  "background_color": "#E3F2FD",
+  "theme_color": "#4CAF50",
+  "scope": "./"
 }
