@@ -325,7 +325,14 @@ try {
     console.error("讀取題庫失敗:", e);
     questionBanks = [];
 }
-
+let myExams = [];
+try {
+    const savedExams = localStorage.getItem('myExams');
+    myExams = savedExams ? JSON.parse(savedExams) : [];
+} catch (e) {
+    myExams = [];
+}
+        
 function openModal(type) {
     const modal = document.getElementById('full-modal');
     const title = document.getElementById('modal-title');
@@ -340,6 +347,9 @@ function openModal(type) {
         // --- 題庫管理邏輯 ---
         title.innerText = "題庫管理";
         renderBankList(content);
+        } else if (type === 'exam') {
+        title.innerText = "考卷管理";
+        renderExamList(content);
     } else if (type === 'seed') {
         // --- 種子選擇邏輯 ---
         title.innerText = "選擇種子";
@@ -440,11 +450,133 @@ function deleteBank(index) {
 // 儲存至本地並重新整理介面
 function saveAndRefresh() {
     localStorage.setItem('myQuestionBanks', JSON.stringify(questionBanks));
+    // 確保重新渲染時是針對 modal 內的 content
     const content = document.getElementById('modal-content');
-    renderBankList(content);
+    if(content) renderBankList(content);
+}
+// --- 考卷列表頁面 ---
+function renderExamList(container) {
+    let html = `
+        <div style="padding: 10px; text-align: center;">
+            <button onclick="openCreateExam()" style="background: #FFB74D; color: white; border: none; padding: 12px 25px; border-radius: 30px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 #F57C00;">
+                ➕ 生成新考卷
+            </button>
+        </div>
+        <hr style="border:0; border-top:1px solid #EEE; margin: 15px 0;">
+        <div id="examItems">
+    `;
+
+    if (myExams.length === 0) {
+        html += `<div style="text-align:center; color:#AAA; padding:40px;">目前尚無考卷，請點擊上方按鈕生成。</div>`;
+    } else {
+        myExams.forEach((exam, index) => {
+            html += `
+                <div class="file-item" style="display:flex; justify-content:space-between; align-items:center; background:white; margin-bottom:12px; padding:15px; border-radius:15px; border:1px solid #EEE;">
+                    <div style="text-align:left;">
+                        <div style="font-weight:bold; color:#5D4037;">📄 ${exam.name}</div>
+                        <div style="font-size:0.75rem; color:#999;">包含 ${exam.bankCount} 個題庫 | 共 ${exam.totalQuestions} 題</div>
+                    </div>
+                    <button onclick="deleteExam(${index})" style="background:#FF8A80; color:white; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">刪除</button>
+                </div>
+            `;
+        });
+    }
+    html += `</div>`;
+    container.innerHTML = html;
 }
 
+// --- 開啟「生成考卷」的全螢幕選擇介面 ---
+function openCreateExam() {
+    // 建立一個臨時的全螢幕層
+    const overlay = document.createElement('div');
+    overlay.id = 'create-exam-overlay';
+    overlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:#FFFDF9; z-index:200; display:flex; flex-direction:column; padding-top:env(safe-area-inset-top);";
+    
+    let bankOptions = '';
+    if (questionBanks.length === 0) {
+        bankOptions = '<p style="text-align:center; color:red; padding:20px;">請先到「題庫區」上傳 HTML 檔案！</p>';
+    } else {
+        questionBanks.forEach((bank, idx) => {
+            bankOptions += `
+                <label style="display:flex; align-items:center; padding:15px; background:white; border-radius:12px; margin-bottom:10px; border:1px solid #EEE;">
+                    <input type="checkbox" name="selectBank" value="${idx}" style="width:20px; height:20px; margin-right:15px;">
+                    <div>
+                        <div style="font-weight:bold;">${bank.title}</div>
+                        <div style="font-size:0.8rem; color:#888;">${bank.count} 題</div>
+                    </div>
+                </label>
+            `;
+        });
+    }
 
+    overlay.innerHTML = `
+        <div style="padding:18px; display:flex; align-items:center; justify-content:space-between; border-bottom:2px dashed #FFB6C1;">
+            <h2 style="font-size:1.2rem; color:#5D4037;">生成新考卷</h2>
+            <button onclick="document.getElementById('create-exam-overlay').remove()" style="background:#EEE; border:none; padding:8px 15px; border-radius:20px;">取消</button>
+        </div>
+        <div style="flex:1; padding:20px; overflow-y:auto;">
+            <p style="margin-bottom:10px; font-weight:bold; color:#888;">1. 選擇要加入的題庫（可複選）：</p>
+            ${bankOptions}
+            <div style="margin-top:20px;">
+                <p style="margin-bottom:10px; font-weight:bold; color:#888;">2. 輸入考卷名稱：</p>
+                <input type="text" id="newExamName" placeholder="例如：115年醫事法規模擬卷" style="width:100%; padding:12px; border-radius:10px; border:1px solid #DDD; font-size:1rem;">
+            </div>
+        </div>
+        <div style="padding:20px; border-top:1px solid #EEE;">
+            <button onclick="confirmCreateExam()" style="width:100%; background:#4CAF50; color:white; border:none; padding:15px; border-radius:15px; font-size:1.1rem; font-weight:bold; box-shadow: 0 4px 0 #2E7D32;">確認生成</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+}
+
+// --- 確認生成邏輯 ---
+function confirmCreateExam() {
+    const selectedIndexes = Array.from(document.querySelectorAll('input[name="selectBank"]:checked')).map(cb => cb.value);
+    const examName = document.getElementById('newExamName').value.trim();
+
+    if (selectedIndexes.length === 0) {
+        alert('請至少選擇一個題庫！');
+        return;
+    }
+    if (!examName) {
+        alert('請輸入考卷名稱！');
+        return;
+    }
+
+    // 計算總題數並合併內容
+    let totalQ = 0;
+    let combinedContent = [];
+    selectedIndexes.forEach(idx => {
+        const bank = questionBanks[idx];
+        totalQ += bank.count;
+        combinedContent.push(bank.content);
+    });
+
+    const newExam = {
+        id: Date.now(),
+        name: examName,
+        bankCount: selectedIndexes.length,
+        totalQuestions: totalQ,
+        contents: combinedContent, // 存入合併的 HTML 原始碼
+        date: new Date().toLocaleDateString()
+    };
+
+    myExams.push(newExam);
+    localStorage.setItem('myExams', JSON.stringify(myExams));
+    
+    // 移除遮罩並重新渲染列表
+    document.getElementById('create-exam-overlay').remove();
+    renderExamList(document.getElementById('modal-content'));
+}
+
+// --- 刪除考卷 ---
+function deleteExam(index) {
+    if (confirm('確定要刪除這份考卷嗎？')) {
+        myExams.splice(index, 1);
+        localStorage.setItem('myExams', JSON.stringify(myExams));
+        renderExamList(document.getElementById('modal-content'));
+    }
+}
         
         const seedData = [
             {n:'向日葵', i:'🌻', c:5}, {n:'鬱金香', i:'🌷', c:2},
