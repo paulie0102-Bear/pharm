@@ -1,6 +1,24 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="練習花園">
+    
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <link rel="manifest" href="manifest.json">
+    
+    <meta name="theme-color" content="#4CAF50">
+    
+    <title>練習花園</title>
+
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Secret Garden - 秘密花園答題系統</title>
@@ -30,12 +48,17 @@
         }
 
         body {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            background-color: var(--sky-blue);
-        }
+    /* 改用 dvh 確保在 iOS 上完美填滿螢幕，不被工具列撐開 */
+    height: 100dvh; 
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--sky-blue);
+    
+    /* 核心：防止畫面在某些情況下被過度拉伸 */
+    position: fixed; 
+    width: 100%;
+}
 
         /* --- 主畫面區域 --- */
         .game-scene {
@@ -148,6 +171,7 @@
             padding: 15px 12px calc(15px + env(safe-area-inset-bottom));
             border-top: 1px solid #EEE;
             z-index: 10;
+            background-clip: padding-box;
         }
         .nav-row {
             display: grid;
@@ -157,6 +181,10 @@
         }
         .nav-row:last-child { margin-bottom: 0; }
         .nav-btn {
+        min-height: 44px; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
             background: white;
             border: 2px solid var(--btn-pink);
             border-radius: 15px;
@@ -179,10 +207,11 @@
             transform: translateY(100%);
             transition: transform 0.3s ease-out;
             padding-top: env(safe-area-inset-top);
+            
         }
         .modal.active { transform: translateY(0); }
         .modal-header {
-            padding: 18px;
+            padding: 20px 18px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -294,7 +323,7 @@
 
     <nav>
         <div class="nav-row">
-            <div class="nav-btn" onclick="openModal('backpack')">🎒 背包</div>
+            <div class="nav-btn" onclick="openModal('bag')">🎒 背包</div>
             <div class="nav-btn" onclick="openModal('shop')">🛒 商店</div>
             <div class="nav-btn" style="background:#FFF9C4" onclick="openModal('quiz')">📝 答題</div>
             <div class="nav-btn" onclick="openModal('player')">👤 玩家</div>
@@ -316,39 +345,84 @@
     </div>
 
     <script>
-// 1. 初始化資料 (確保放在程式碼最上方)
-let questionBanks = [];
+
+
+// ==========================================
+// 1. 玩家基礎數據 (金錢、背包、種子)
+// ==========================================
+// 使用 var 避免重複宣告報錯
+var s = s || {
+    money: 100,
+    harvestCount: 0,
+    backpack: [],
+    seeds: {
+        '向日葵': 1, '鬱金香': 1, '玫瑰花': 1, '櫻花樹': 0,
+        '扶桑花': 0, '雛菊花': 0, '四葉草': 0, '仙人掌': 0,
+        '薰衣草': 0, '奇幻菇': 0
+    }
+};
+
 try {
-    const savedData = localStorage.getItem('myQuestionBanks');
-    questionBanks = savedData ? JSON.parse(savedData) : [];
-} catch (e) {
-    console.error("讀取題庫失敗:", e);
-    questionBanks = [];
-}
-let myExams = [];
+    const savedS = localStorage.getItem('playerData');
+    if (savedS) {
+        const parsedS = JSON.parse(savedS);
+        s = { ...s, ...parsedS };
+        // 確保新功能 seeds 存在
+        if (!s.seeds) s.seeds = { '向日葵': 1, '鬱金香': 1, '玫瑰花': 1, '櫻花樹': 0, '扶桑花': 0, '雛菊花': 0, '四葉草': 0, '仙人掌': 0, '薰衣草': 0, '奇幻菇': 0 };
+    }
+} catch (e) { console.error("玩家數據讀取失敗"); }
+
+// ==========================================
+// 2. 核心資料區 (找回你的錯題池與紀錄)
+// ==========================================
+// 這裡確保讀取你原本的 localStorage Key 值
+var questionBanks = questionBanks || [];
+var myExams = myExams || [];
+var wrongQuestions = wrongQuestions || [];
+var quizRecords = quizRecords || [];
+
 try {
-    const savedExams = localStorage.getItem('myExams');
-    myExams = savedExams ? JSON.parse(savedExams) : [];
+    // 重新從瀏覽器資料庫抓取你原本的資料
+    const localBanks = localStorage.getItem('myQuestionBanks');
+    if (localBanks) questionBanks = JSON.parse(localBanks);
+
+    const localExams = localStorage.getItem('myExams');
+    if (localExams) myExams = JSON.parse(localExams);
+
+    const localWrongs = localStorage.getItem('myWrongQuestions');
+    if (localWrongs) wrongQuestions = JSON.parse(localWrongs);
+
+    const localRecords = localStorage.getItem('myQuizRecords');
+    if (localRecords) quizRecords = JSON.parse(localRecords);
+
+    console.log("資料恢復成功！錯題數：", wrongQuestions.length);
 } catch (e) {
-    myExams = [];
+    console.error("恢復錯題池失敗，請檢查 localStorage 格式:", e);
 }
-let currentQuiz = {
+
+// ==========================================
+// 3. 運行狀態 (解決 startQuiz 報錯)
+// ==========================================
+var currentQuiz = currentQuiz || {
     questions: [],
     currentIndex: 0,
     userAnswers: [],
     examId: null,
     examName: ""
 };
-        
-let wrongQuestions = []; // 存放所有錯題的集合
-let quizRecords = [];    // 存放歷次答題紀錄
 
-try {
-    wrongQuestions = JSON.parse(localStorage.getItem('myWrongQuestions')) || [];
-    quizRecords = JSON.parse(localStorage.getItem('myQuizRecords')) || [];
-} catch (e) {
-    wrongQuestions = [];
-    quizRecords = [];
+var gardenState = gardenState || {
+    isPlanted: false,
+    currentPlant: null,
+    progress: 0
+};
+
+// --- 3. 統一存檔函式 (方便後續呼叫) ---
+function saveGame() {
+    localStorage.setItem('playerData', JSON.stringify(s));
+    localStorage.setItem('myWrongQuestions', JSON.stringify(wrongQuestions));
+    localStorage.setItem('myQuizRecords', JSON.stringify(quizRecords));
+    // 考卷與題庫通常在新增時才會存，但也可以放這
 }
         
 function openModal(type) {
@@ -376,19 +450,30 @@ function openModal(type) {
     } else if (type === 'player') {
         title.innerText = "訓練家資訊";
         renderPlayerPage(content);
+    } else if (type === 'shop') {
+        title.innerText = "種子商店";
+        renderShop(content);
     } else if (type === 'bag') {
         title.innerText = "我的背包";
         renderBackpack(content);
+    } else if (type === 'settings') {
+        title.innerText = "系統設定與備份";
+        renderSettingsPage(content);
     } else if (type === 'seed') {
         title.innerText = "選擇種子";
         let html = '<div class="seed-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:10px;">';
         
-        seedData.forEach((s, index) => {
+        seedData.forEach((sd, index) => {
+            // 從玩家數據中抓取真正的數量
+            const currentCount = s.seeds[sd.n] || 0;
+
             html += `
             <div class="seed-card" onclick="plantSeed(${index})" style="background:white; padding:15px; border-radius:15px; border:1px solid #EEE; text-align:center; cursor:pointer;">
-                <span style="font-size:3rem;">${s.i}</span>
-                <div style="font-weight:bold; margin-top:5px;">${s.n}</div>
-                <div style="font-size:0.8rem; color:#888;">難度：${s.c}</div>
+                <span style="font-size:3rem;">${sd.i}</span>
+                <div style="font-weight:bold; margin-top:5px;">${sd.n}</div>
+                <div style="font-size:0.8rem; color:${currentCount > 0 ? '#888' : '#ff4d4d'};">
+                    數量：${currentCount}
+                </div>
             </div>`;
         });
         html += '</div>';
@@ -636,20 +721,36 @@ function renderQuizSettings(container) {
     `;
 }
 
-let isRandom = false;
+// 初始值設為 false
+window.isRandom = false; 
+
 function setOrder(random) {
-    isRandom = random;
-    document.getElementById('orderNormal').style.border = random ? '1px solid #EEE' : '1px solid #4CAF50';
-    document.getElementById('orderRandom').style.border = random ? '1px solid #4CAF50' : '1px solid #EEE';
-    document.getElementById('orderNormal').classList.toggle('active', !random);
-    document.getElementById('orderRandom').classList.toggle('active', random);
+    // 1. 強制更新全域變數
+    window.isRandom = random; 
+
+    // 2. 更新按鈕樣式 (對應你 renderQuizSettings 的 ID)
+    const btnNormal = document.getElementById('orderNormal');
+    const btnRandom = document.getElementById('orderRandom');
+
+    if (btnNormal && btnRandom) {
+        btnNormal.style.border = random ? '1px solid #EEE' : '1px solid #4CAF50';
+        btnRandom.style.border = random ? '1px solid #4CAF50' : '1px solid #EEE';
+        
+        // 切換 class 以備不時之需
+        btnNormal.classList.toggle('active', !random);
+        btnRandom.classList.toggle('active', random);
+    }
 }
+
 function startQuiz() {
     const examIndex = document.getElementById('quizScope').value;
     const targetCount = parseInt(document.getElementById('quizCount').value);
     const selectedExam = myExams[examIndex];
+    
+    // 核心：讀取透過按鈕切換的全域狀態
+    const shouldShuffle = window.isRandom;
 
-    // 1. 從所有 HTML 內容中解析出所有題目
+    // 1. 從 HTML 內容解析題目 (保留完整 HTML)
     let allQuestions = [];
     selectedExam.contents.forEach(html => {
         const parser = new DOMParser();
@@ -658,33 +759,42 @@ function startQuiz() {
         items.forEach(item => {
             const ans = item.querySelector('.text-center')?.innerText.trim();
             const text = item.querySelector('.break-words')?.innerText.trim();
-            if (text) allQuestions.push({ answer: ans, text: text });
+            // 必須存下 item.outerHTML 才能在步驟 4 重新組裝回考卷
+            if (text) {
+                allQuestions.push({ 
+                    answer: ans, 
+                    text: text, 
+                    html: item.outerHTML 
+                });
+            }
         });
     });
 
-    // 2. 處理隨機
-    if (isRandom) allQuestions.sort(() => Math.random() - 0.5);
+    // 2. 打亂題序 (修正恢復點)
+    // 只有在按下「打亂題序」按鈕後，才會進入這個邏輯
+    if (shouldShuffle === true) {
+        allQuestions.sort(() => Math.random() - 0.5);
+    }
 
     // 3. 擷取本次要做的題目
     const quizQuestions = allQuestions.slice(0, targetCount);
     const remainingQuestions = allQuestions.slice(targetCount);
 
-    // 4. 更新考卷區 (覆蓋進度)
+    // 4. 更新考卷內容 (消耗功能：100題變90題)
     if (remainingQuestions.length > 0) {
-        // 將剩餘題目封裝回原本的考卷 (這裡簡化處理，將剩餘題目存為文字描述)
-        selectedExam.totalQuestions = remainingQuestions.length;
-        // 注意：為了簡化，這裡建議將解析後的結構存起來，或重新生成簡化版 HTML
-        // 這裡暫時更新題數，讓使用者知道考卷變少了
+        // 將剩餘題目(含 HTML)接龍成一個字串存回 contents 陣列
+        myExams[examIndex].contents = [remainingQuestions.map(q => q.html).join('')];
         myExams[examIndex].totalQuestions = remainingQuestions.length;
-        localStorage.setItem('myExams', JSON.stringify(myExams));
     } else {
-        // 如果全做完了，刪除該考卷
+        // 如果全抽光了，刪除考卷
         myExams.splice(examIndex, 1);
-        localStorage.setItem('myExams', JSON.stringify(myExams));
     }
 
-    // 5. 初始化測驗狀態
-    currentQuiz.questions = quizQuestions;
+    // 5. 持久化存檔 (寫入 localStorage)
+    localStorage.setItem('myExams', JSON.stringify(myExams));
+
+    // 6. 初始化測驗狀態
+    currentQuiz.questions = quizQuestions; 
     currentQuiz.currentIndex = 0;
     currentQuiz.userAnswers = new Array(quizQuestions.length).fill(null);
     currentQuiz.examName = selectedExam.name;
@@ -1019,27 +1129,68 @@ function viewRecordDetail(idx) {
 
         // 擴充後的種子資料 (10種)
 const seedData = [
-    {n:'向日葵', i:'🌻', c:5}, {n:'鬱金香', i:'🌷', c:2},
-    {n:'玫瑰花', i:'🌹', c:1}, {n:'櫻花樹', i:'🌸', c:8},
-    {n:'扶桑花', i:'🌺', c:3}, {n:'雛菊花', i:'🌼', c:10},
-    {n:'四葉草', i:'🍀', c:0}, {n:'仙人掌', i:'🌵', c:4},
-    {n:'薰衣草', i:'🌿', c:6}, {n:'奇幻菇', i:'🍄', c:1}
+    {n:'向日葵', i:'🌻', c:5, price: 50}, {n:'鬱金香', i:'🌷', c:2, price: 80},
+    {n:'玫瑰花', i:'🌹', c:1, price: 100}, {n:'櫻花樹', i:'🌸', c:8, price: 200},
+    {n:'扶桑花', i:'🌺', c:3, price: 80}, {n:'雛菊花', i:'🌼', c:10, price: 80},
+    {n:'四葉草', i:'🍀', c:0, price: 100}, {n:'仙人掌', i:'🌵', c:4, price: 80},
+    {n:'薰衣草', i:'🌿', c:6, price: 100}, {n:'奇幻菇', i:'🍄', c:1, price: 100}
 ];
 
-// 目前土丘的狀態
-let gardenState = {
-    isPlanted: false,
-    currentPlant: null,
-    progress: 0
-};
+function buySeed(index) {
+    const seed = seedData[index];
+    
+    // 檢查錢夠不夠
+    if (s.money < seed.price) {
+        alert("錢不夠喔！快去答題賺錢吧！");
+        return;
+    }
 
-// 玩家背包與數據 (如果還沒定義請加上)
-if (typeof s === 'undefined') {
-    var s = {
-        money: 100,
-        harvestCount: 0,
-        backpack: [] // 存放收穫的植物名稱
-    };
+    // 執行交易
+    s.money -= seed.price;
+    
+    // 增加庫存 (確保 seeds 物件存在)
+    if (!s.seeds) s.seeds = {};
+    s.seeds[seed.n] = (s.seeds[seed.n] || 0) + 1;
+
+    // 存檔與更新介面
+    saveGame();
+    updateMainUI(); // 更新主畫面金錢顯示
+    
+    // 重新渲染商店內容 (讓玩家看到數量變動)
+    const content = document.getElementById('modal-content');
+    renderShop(content);
+    
+    // 小提示
+    console.log(`購入了 ${seed.n}，剩餘金額: $${s.money}`);
+}
+
+function renderShop(container) {
+    let html = `
+        <div style="padding:10px; text-align:center;">
+            <div style="background:#FFF9C4; padding:10px; border-radius:10px; margin-bottom:15px; font-weight:bold; color:#F57F17;">
+                💰 我的錢包：$${s.money}
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    `;
+
+    seedData.forEach((sd, index) => {
+        const myCount = s.seeds[sd.n] || 0;
+        html += `
+            <div style="background:white; padding:15px; border-radius:20px; border:1px solid #EEE; box-shadow:0 4px 6px rgba(0,0,0,0.02); text-align:center;">
+                <div style="font-size:2.5rem; margin-bottom:5px;">${sd.i}</div>
+                <div style="font-weight:bold; font-size:0.9rem;">${sd.n}</div>
+                <div style="color:#E64A19; font-weight:bold; margin:5px 0;">$${sd.price}</div>
+                <div style="font-size:0.7rem; color:#AAA; margin-bottom:10px;">目前持有：${myCount}</div>
+                <button onclick="buySeed(${index})" 
+                        style="width:100%; padding:8px; background:#81C784; color:white; border:none; border-radius:10px; cursor:pointer; font-weight:bold;">
+                    購買
+                </button>
+            </div>
+        `;
+    });
+
+    html += `</div></div>`;
+    container.innerHTML = html;
 }
 
         // --- 播種功能 ---
@@ -1049,23 +1200,27 @@ function plantSeed(index) {
         return;
     }
     
-    // --- 安全檢查：確保 index 是數字 ---
     const idx = parseInt(index);
     const seed = seedData[idx];
 
-    // --- 安全檢查：確保真的有抓到這顆種子 ---
-    if (!seed) {
-        console.error("找不到種子資料");
+    if (!seed) return;
+
+    // --- 新增：檢查庫存 ---
+    if (!s.seeds[seed.n] || s.seeds[seed.n] <= 0) {
+        alert(`${seed.n} 種子不夠了！`);
         return;
     }
+
+    // 執行扣除
+    s.seeds[seed.n]--;
     
     gardenState.isPlanted = true;
     gardenState.currentPlant = seed;
     gardenState.progress = 0;
     
     updateGardenUI();
+    saveGame(); // 儲存數量變化
     closeModal();
-    // alert(`成功播種了 ${seed.n}！`); // 如果覺得彈窗太煩可以註解掉
 }
 
 // --- 澆水/播種/曬太陽 行動 ---
@@ -1131,41 +1286,84 @@ function checkHarvest() {
     if (gardenState.isPlanted && gardenState.progress >= 100) {
         const plant = gardenState.currentPlant;
         
-        // 1. 同步玩家數據
-        s.harvestCount++;
-        s.backpack.push({ name: plant.n, icon: plant.i, date: new Date().toLocaleDateString() });
+        // 1. 同步數據
+        if (typeof s !== 'undefined') {
+            s.harvestCount = (s.harvestCount || 0) + 1;
+            
+            // 確保 backpack 存在
+            if (!s.backpack) s.backpack = [];
+            
+            s.backpack.push({ 
+                name: plant.n, 
+                icon: plant.i, 
+                date: new Date().toLocaleDateString() 
+            });
+        }
         
-        // 2. 重置土丘
-        alert(`恭喜！收穫了漂亮的 ${plant.n}！收穫次數 +1`);
+        // 2. 重置狀態
         gardenState.isPlanted = false;
         gardenState.currentPlant = null;
         gardenState.progress = 0;
         
+        // 3. 先更新畫面讓植物「消失」，玩家會有真的採下來的感覺
         updateGardenUI();
         
-        // 如果有存檔機制，記得執行 saveGame();
+        // 4. 延遲一點點再跳通知，體驗更流暢
+        setTimeout(() => {
+            alert(`✨ 收穫成功！✨\n你獲得了漂亮的 ${plant.n}！\n已存入背包，收穫次數 +1`);
+            
+            // 如果你有存檔函式，放在這裡
+            if (typeof saveGame === 'function') saveGame();
+        }, 100);
     }
 }
+
 function renderBackpack(container) {
-    if (s.backpack.length === 0) {
-        container.innerHTML = `<div style="text-align:center; padding:40px; color:#AAA;">背包是空的，快去種花吧！</div>`;
+    // 1. 檢查背包是否為空 (加上一點圖示讓畫面不單調)
+    if (!s.backpack || s.backpack.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center; padding:60px 20px; color:#AAA;">
+                <div style="font-size:3.5rem; margin-bottom:15px; opacity:0.3;">🎒</div>
+                <div style="font-weight:bold;">背包是空的</div>
+                <div style="font-size:0.8rem; margin-top:5px;">快去播種並細心照顧植物吧！</div>
+            </div>`;
         return;
     }
 
-    let html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:10px;">`;
+    // 2. 開始渲染網格列表
+    let html = `
+        <div style="padding:10px;">
+            <p style="font-size:0.75rem; color:#888; margin-bottom:15px; text-align:center;">✨ 已收穫的珍貴花草 ✨</p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    `;
+
     s.backpack.forEach(item => {
+        // 使用 item.icon (i) 和 item.name (n)
         html += `
-            <div style="background:white; padding:15px; border-radius:15px; border:1px solid #EEE; text-align:center;">
-                <div style="font-size:2.5rem; margin-bottom:5px;">${item.icon}</div>
-                <div style="font-weight:bold; font-size:0.9rem;">${item.name}</div>
-                <div style="font-size:0.7rem; color:#CCC;">${item.date}</div>
+            <div style="background:white; padding:20px 10px; border-radius:20px; border:1px solid #F5F5F5; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
+                <div style="font-size:3rem; margin-bottom:8px; display:inline-block; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.1));">
+                    ${item.icon || item.i} 
+                </div>
+                <div style="font-weight:bold; font-size:1rem; color:#5D4037;">${item.name || item.n}</div>
+                <div style="font-size:0.7rem; color:#BDBDBD; margin-top:5px; font-family:monospace;">
+                    ${item.date || new Date().toLocaleDateString()}
+                </div>
             </div>
         `;
     });
-    html += `</div>`;
+
+    html += `
+            </div>
+            <div style="text-align:center; color:#CCC; font-size:0.7rem; margin-top:25px; letter-spacing:1px;">
+                ─── 已收藏 ${s.backpack.length} 種植物 ───
+            </div>
+        </div>
+    `;
+
     container.innerHTML = html;
 }
-        function closeModal() {
+
+function closeModal() {
     const modal = document.getElementById('full-modal');
     if (modal) {
         modal.classList.remove('active');
@@ -1252,6 +1450,103 @@ function renderPlayerPage(container) {
     `;
 }
         
+function renderSettingsPage(container) {
+    container.innerHTML = `
+        <div style="padding:20px; display:flex; flex-direction:column; gap:25px;">
+            <div style="background:#FFF3E0; padding:20px; border-radius:15px; border:1px solid #FFE0B2;">
+                <h3 style="margin-top:0; color:#E65100;">💾 資料備份</h3>
+                <p style="font-size:0.85rem; color:#666;">將所有題庫、考卷、錯題與遊戲進度匯出成一個檔案。</p>
+                <button onclick="exportAllData()" style="width:100%; background:#FB8C00; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">
+                    建立備份檔案 (.json)
+                </button>
+            </div>
+
+            <div style="background:#E8F5E9; padding:20px; border-radius:15px; border:1px solid #C8E6C9;">
+                <h3 style="margin-top:0; color:#2E7D32;">📤 資料還原</h3>
+                <p style="font-size:0.85rem; color:#666;">選擇之前的備份檔來還原資料。<br><span style="color:red;">注意：這將覆蓋目前所有資料！</span></p>
+                <label style="display:block; width:100%; background:#4CAF50; color:white; text-align:center; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer;">
+                    選擇檔案並還原
+                    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importAllData(event)">
+                </label>
+            </div>
+
+            <div style="text-align:center; margin-top:20px;">
+                <button onclick="dangerReset()" style="background:none; border:none; color:#AAA; text-decoration:underline; font-size:0.8rem; cursor:pointer;">
+                    清空所有資料 (初始化)
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// --- 核心邏輯：匯出 ---
+function exportAllData() {
+    const allData = {
+        playerData: JSON.parse(localStorage.getItem('playerData')),
+        myQuestionBanks: JSON.parse(localStorage.getItem('myQuestionBanks')),
+        myExams: JSON.parse(localStorage.getItem('myExams')),
+        myWrongQuestions: JSON.parse(localStorage.getItem('myWrongQuestions')),
+        myQuizRecords: JSON.parse(localStorage.getItem('myQuizRecords'))
+    };
+
+    const dataStr = JSON.stringify(allData, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `yamol_backup_${new Date().toLocaleDateString().replace(/\//g, '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+// --- 核心邏輯：匯入 ---
+function importAllData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!confirm("確定要匯入嗎？目前的進度與題庫將會被完全覆蓋！")) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const imported = JSON.parse(e.target.result);
+            
+            // 逐一寫入 localStorage
+            if (imported.playerData) localStorage.setItem('playerData', JSON.stringify(imported.playerData));
+            if (imported.myQuestionBanks) localStorage.setItem('myQuestionBanks', JSON.stringify(imported.myQuestionBanks));
+            if (imported.myExams) localStorage.setItem('myExams', JSON.stringify(imported.myExams));
+            if (imported.myWrongQuestions) localStorage.setItem('myWrongQuestions', JSON.stringify(imported.myWrongQuestions));
+            if (imported.myQuizRecords) localStorage.setItem('myQuizRecords', JSON.stringify(imported.myQuizRecords));
+
+            alert("資料還原成功！網頁將自動重新整理。");
+            location.reload(); // 必須刷新頁面讓變數重新讀取
+        } catch (err) {
+            alert("檔案格式錯誤，無法還原。");
+            console.error(err);
+        }
+    };
+    reader.readAsText(file);
+}
+
+// --- 核心邏輯：危險重置 ---
+function dangerReset() {
+    if (confirm("確定要刪除所有資料嗎？這包含你的題庫、金錢和所有考卷，且無法復原。")) {
+        localStorage.clear();
+        location.reload();
+    }
+}
+
+
+
+// 在你的腳本最後面加入這行
+window.onload = function() {
+    updateMainUI();
+    // 如果有花園畫面，也可以順便更新
+    if (typeof updateGardenUI === 'function') updateGardenUI();
+};
+
     </script>
 </body>
 </html>
