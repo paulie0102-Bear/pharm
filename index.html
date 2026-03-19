@@ -720,11 +720,17 @@ function finishQuiz() {
     const results = currentQuiz.questions.map((q, i) => {
         const isCorrect = q.answer === currentQuiz.userAnswers[i];
         if (isCorrect) correctCount++;
-        return { qText: q.text, userAns: currentQuiz.userAnswers[i], correctAns: q.answer, isCorrect: isCorrect };
+        return { 
+            qText: q.text, 
+            userAns: currentQuiz.userAnswers[i], 
+            correctAns: q.answer, 
+            isCorrect: isCorrect 
+        };
     });
 
     const reward = correctCount * 10;
-    // 這裡應更新你的玩家金錢變數，例如：s.money += reward;
+    // 如果你有全域變數 s，請取消下一行的註解
+    // if (typeof s !== 'undefined') s.money += reward; 
     
     const content = document.getElementById('modal-content');
     document.getElementById('modal-title').innerText = "測驗結果";
@@ -738,21 +744,31 @@ function finishQuiz() {
         <div style="font-weight:bold; margin-bottom:10px;">詳解與回顧：</div>
     `;
 
-    // 每 10 題一頁的簡易呈現
     results.forEach((r, i) => {
+        // --- 新增：產生 Google 搜尋連結 ---
+        // 擷取題目前 30 個字作為關鍵字，並加上 site:yamol.tw 限制搜尋範圍
+        const searchQuery = encodeURIComponent(r.qText.substring(0, 40) + " site:yamol.tw");
+        const googleLink = `https://www.google.com/search?q=${searchQuery}`;
+
         resultHtml += `
-            <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:10px; margin-bottom:10px; font-size:0.9rem;">
-                <strong>第 ${i+1} 題：${r.isCorrect ? '✅' : '❌'}</strong><br>
-                你的答案：${r.userAns || '未答'} | 正確答案：${r.correctAns}
+            <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:15px; margin-bottom:15px; font-size:0.9rem; border: 1px solid ${r.isCorrect ? '#C8E6C9' : '#FFCDD2'};">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <strong>第 ${i+1} 題：${r.isCorrect ? '✅' : '❌'}</strong>
+                    ${!r.isCorrect ? `<a href="${googleLink}" target="_blank" style="background:#4285F4; color:white; padding:4px 10px; border-radius:8px; text-decoration:none; font-size:0.75rem; font-weight:bold;">🔍 阿摩詳解</a>` : ''}
+                </div>
+                <div style="margin: 8px 0; color:#555; line-height:1.4;">${r.qText}</div>
+                <div style="font-weight:bold;">
+                    你的答案：<span style="color:${r.isCorrect ? '#2E7D32' : '#C62828'}">${r.userAns || '未答'}</span> | 
+                    正確答案：<span style="color:#2E7D32">${r.correctAns}</span>
+                </div>
             </div>
         `;
     });
 
-    resultHtml += `<button onclick="closeModal()" style="width:100%; padding:15px; background:#5D4037; color:white; border-radius:15px; margin-top:20px; border:none;">返回花園</button>`;
+    resultHtml += `<button onclick="closeModal()" style="width:100%; padding:15px; background:#5D4037; color:white; border-radius:15px; margin-top:20px; border:none; font-size:1rem; font-weight:bold;">返回花園</button>`;
     
     content.innerHTML = resultHtml;
 }
-
         const seedData = [
             {n:'向日葵', i:'🌻', c:5}, {n:'鬱金香', i:'🌷', c:2},
             {n:'玫瑰花', i:'🌹', c:1}, {n:'櫻花樹', i:'🌸', c:8},
