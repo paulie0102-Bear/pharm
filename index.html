@@ -274,6 +274,48 @@
     </style>
 </head>
 <body>
+
+    <div class="game-scene">
+        <div class="cloud c1"></div>
+        <div class="cloud c2"></div>
+        
+        <div class="center-stage">
+            <div class="soil-mound" id="garden-soil"></div>
+            
+            <div class="action-group">
+                <button class="action-btn btn-water" onclick="action('澆水')"><span>💧</span>澆水</button>
+                <button class="action-btn btn-fertilize" onclick="action('施肥')"><span>💩</span>施肥</button>
+                <button class="action-btn btn-sun" onclick="action('曬太陽')"><span>☀️</span>太陽</button>
+            </div>
+
+            <button class="plant-btn-main" onclick="openModal('seed')">🌱 開始種植</button>
+        </div>
+    </div>
+
+    <nav>
+        <div class="nav-row">
+            <div class="nav-btn" onclick="openModal('backpack')">🎒 背包</div>
+            <div class="nav-btn" onclick="openModal('shop')">🛒 商店</div>
+            <div class="nav-btn" style="background:#FFF9C4" onclick="openModal('quiz')">📝 答題</div>
+            <div class="nav-btn" onclick="openModal('player')">👤 玩家</div>
+        </div>
+        <div class="nav-row">
+            <div class="nav-btn" onclick="openModal('exam')">📄 考卷</div>
+            <div class="nav-btn" onclick="openModal('bank')">📚 題庫</div>
+            <div class="nav-btn" onclick="openModal('wrong')">❌ 錯題</div>
+            <div class="nav-btn" onclick="openModal('settings')">⚙️ 設定</div>
+        </div>
+    </nav>
+
+    <div id="full-modal" class="modal">
+        <div class="modal-header">
+            <h2 id="modal-title">標題</h2>
+            <button class="back-btn" onclick="closeModal()">返回 ↩</button>
+        </div>
+        <div id="modal-content" class="modal-body"></div>
+    </div>
+
+    <script>
 // 題庫資料陣列，從本地儲存讀取
 let questionBanks = JSON.parse(localStorage.getItem('myQuestionBanks')) || [];
 
@@ -372,47 +414,9 @@ function saveAndRefresh() {
     const content = document.getElementById('modal-content');
     renderBankList(content);
 }
-    <div class="game-scene">
-        <div class="cloud c1"></div>
-        <div class="cloud c2"></div>
+
+
         
-        <div class="center-stage">
-            <div class="soil-mound" id="garden-soil"></div>
-            
-            <div class="action-group">
-                <button class="action-btn btn-water" onclick="action('澆水')"><span>💧</span>澆水</button>
-                <button class="action-btn btn-fertilize" onclick="action('施肥')"><span>💩</span>施肥</button>
-                <button class="action-btn btn-sun" onclick="action('曬太陽')"><span>☀️</span>太陽</button>
-            </div>
-
-            <button class="plant-btn-main" onclick="openModal('seed')">🌱 開始種植</button>
-        </div>
-    </div>
-
-    <nav>
-        <div class="nav-row">
-            <div class="nav-btn" onclick="openModal('backpack')">🎒 背包</div>
-            <div class="nav-btn" onclick="openModal('shop')">🛒 商店</div>
-            <div class="nav-btn" style="background:#FFF9C4" onclick="openModal('quiz')">📝 答題</div>
-            <div class="nav-btn" onclick="openModal('player')">👤 玩家</div>
-        </div>
-        <div class="nav-row">
-            <div class="nav-btn" onclick="openModal('exam')">📄 考卷</div>
-            <div class="nav-btn" onclick="openModal('bank')">📚 題庫</div>
-            <div class="nav-btn" onclick="openModal('wrong')">❌ 錯題</div>
-            <div class="nav-btn" onclick="openModal('settings')">⚙️ 設定</div>
-        </div>
-    </nav>
-
-    <div id="full-modal" class="modal">
-        <div class="modal-header">
-            <h2 id="modal-title">標題</h2>
-            <button class="back-btn" onclick="closeModal()">返回 ↩</button>
-        </div>
-        <div id="modal-content" class="modal-body"></div>
-    </div>
-
-    <script>
         const seedData = [
             {n:'向日葵', i:'🌻', c:5}, {n:'鬱金香', i:'🌷', c:2},
             {n:'玫瑰花', i:'🌹', c:1}, {n:'櫻花樹', i:'🌸', c:8},
