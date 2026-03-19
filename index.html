@@ -832,14 +832,19 @@ function finishQuiz() {
 }
 
 function renderWrongArea(container) {
+    // 1. 渲染基礎結構
     container.innerHTML = `
-        <div style="display:flex; gap:10px; margin-bottom:20px;">
-            <button onclick="switchWrongTab('list')" id="tab-list" style="flex:1; padding:10px; border:none; border-bottom:3px solid var(--btn-pink); font-weight:bold; background:none;">錯題列表</button>
-            <button onclick="switchWrongTab('record')" id="tab-record" style="flex:1; padding:10px; border:none; font-weight:bold; background:none; color:#AAA;">答題紀錄</button>
+        <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1px solid #EEE;">
+            <button onclick="switchWrongTab('list')" id="tab-list" style="flex:1; padding:12px; border:none; border-bottom:3px solid var(--btn-pink); font-weight:bold; background:none; cursor:pointer;">錯題列表</button>
+            <button onclick="switchWrongTab('record')" id="tab-record" style="flex:1; padding:12px; border:none; font-weight:bold; background:none; color:#AAA; cursor:pointer;">答題紀錄</button>
         </div>
         <div id="wrong-tab-content"></div>
     `;
-    switchWrongTab('list');
+
+    // 2. 使用 setTimeout 確保上面的 HTML 已經被瀏覽器解析完成
+    setTimeout(() => {
+        switchWrongTab('list');
+    }, 0);
 }
 
 function switchWrongTab(tab) {
@@ -847,21 +852,30 @@ function switchWrongTab(tab) {
     const tabList = document.getElementById('tab-list');
     const tabRecord = document.getElementById('tab-record');
 
+    // --- 安全檢查：如果元素還沒準備好，就先跳出不執行 ---
+    if (!content || !tabList || !tabRecord) return;
+
+    // 3. 樣式切換邏輯
     if (tab === 'list') {
+        // 選中「錯題列表」
         tabList.style.borderBottom = "3px solid var(--btn-pink)";
         tabList.style.color = "black";
+        
         tabRecord.style.borderBottom = "none";
         tabRecord.style.color = "#AAA";
+        
         renderWrongList(content);
     } else {
+        // 選中「答題紀錄」
         tabRecord.style.borderBottom = "3px solid var(--btn-pink)";
         tabRecord.style.color = "black";
+        
         tabList.style.borderBottom = "none";
         tabList.style.color = "#AAA";
+        
         renderRecordList(content);
     }
 }
-
 // --- 錯題列表：顯示與匯出 ---
 function renderWrongList(container) {
     if (wrongQuestions.length === 0) {
@@ -874,17 +888,39 @@ function renderWrongList(container) {
         html += `
             <div style="display:flex; align-items:center; background:white; padding:15px; border-radius:15px; margin-bottom:10px; border:1px solid #EEE;">
                 <input type="checkbox" name="exportWrong" value="${idx}" style="width:20px; height:20px; margin-right:15px;">
+                
                 <div style="flex:1;">
-                    <div style="font-weight:bold;">❌ ${item.title}</div>
+                    <div style="font-weight:bold; color:#5D4037;">❌ ${item.title}</div>
                     <div style="font-size:0.75rem; color:#999;">${item.date} | 共 ${item.questions.length} 題</div>
                 </div>
+
+                <button onclick="deleteWrongEntry(${idx})" style="background:#FF8A80; color:white; border:none; padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.8rem; margin-left:10px;">
+                    刪除
+                </button>
             </div>
         `;
     });
-    html += `<button onclick="exportWrongToExam()" style="width:100%; background:var(--btn-orange); color:white; padding:15px; border-radius:15px; border:none; font-weight:bold; margin-top:10px;">📤 匯出選中錯題為考卷</button>`;
+    html += `<button onclick="exportWrongToExam()" style="width:100%; background:var(--btn-orange); color:white; padding:15px; border-radius:15px; border:none; font-weight:bold; margin-top:10px; box-shadow:0 4px 0 #E65100;">📤 匯出選中錯題為考卷</button>`;
     container.innerHTML = html;
 }
 
+function deleteWrongEntry(index) {
+    // 彈出確認視窗，避免手滑誤刪
+    if (confirm("確定要永久刪除這份錯題紀錄嗎？")) {
+        // 1. 從陣列中移除該筆資料
+        wrongQuestions.splice(index, 1);
+        
+        // 2. 同步更新 localStorage
+        localStorage.setItem('myWrongQuestions', JSON.stringify(wrongQuestions));
+        
+        // 3. 重新渲染列表（直接抓取當前的容器）
+        const content = document.getElementById('wrong-tab-content');
+        if (content) {
+            renderWrongList(content);
+        }
+    }
+}
+        
 // --- 答題紀錄：歷史查閱 ---
 function renderRecordList(container) {
     if (quizRecords.length === 0) {
