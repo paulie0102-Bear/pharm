@@ -374,6 +374,9 @@ function openModal(type) {
         } else if (type === 'wrong') {
         title.innerText = "錯題與紀錄";
     renderWrongArea(content);
+        } else if (type === 'player') {
+        title.innerText = "訓練家資訊";
+    renderPlayerPage(content);
     } else if (type === 'seed') {
         // --- 種子選擇邏輯 ---
         title.innerText = "選擇種子";
@@ -976,30 +979,41 @@ function exportWrongToExam() {
 }
 
 // 查看歷史紀錄詳情
+// 查看歷史紀錄詳情
 function viewRecordDetail(idx) {
     const rec = quizRecords[idx];
     const content = document.getElementById('modal-content');
-    document.getElementById('modal-title').innerText = "測驗紀錄詳情";
+    
+    // 設定標題（可以維持原樣，或改為顯示該筆紀錄的名稱）
+    document.getElementById('modal-title').innerText = rec.title || "測驗紀錄詳情";
 
-    let html = `<div style="padding:10px;"><button onclick="switchWrongTab('record')" style="background:#EEE; border:none; padding:5px 15px; border-radius:10px; margin-bottom:15px;">⬅ 返回紀錄列表</button>`;
+    let html = `<div style="padding:10px;">`;
     
     rec.details.forEach((r, i) => {
         const searchQuery = encodeURIComponent(r.qText.substring(0, 40) + " site:yamol.tw");
         const googleLink = `https://www.google.com/search?q=${searchQuery}`;
         
         html += `
-            <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:15px; margin-bottom:10px; font-size:0.85rem;">
-                <div style="display:flex; justify-content:space-between;">
-                    <strong>第 ${i+1} 題 ${r.isCorrect ? '✅' : '❌'}</strong>
-                    <a href="${googleLink}" target="_blank" style="color:#4285F4; text-decoration:none; font-size:0.7rem; font-weight:bold;">🔍 阿摩搜尋</a>
+            <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:15px; margin-bottom:10px; font-size:0.85rem; border: 1px solid ${r.isCorrect ? '#C8E6C9' : '#FFCDD2'};">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <strong style="color:${r.isCorrect ? '#2E7D32' : '#C62828'}">第 ${i+1} 題 ${r.isCorrect ? '✅' : '❌'}</strong>
+                    <a href="${googleLink}" target="_blank" style="background:#4285F4; color:white; padding:4px 10px; border-radius:8px; text-decoration:none; font-size:0.7rem; font-weight:bold;">🔍 阿摩搜尋</a>
                 </div>
-                <div style="margin:5px 0;">${r.qText}</div>
-                <div style="font-weight:bold;">你的答案：${r.userAns || '未答'} | 正確：${r.correctAns}</div>
+                <div style="margin:8px 0; color:#444; line-height:1.4;">${r.qText}</div>
+                <div style="background:rgba(255,255,255,0.5); padding:8px; border-radius:8px; font-weight:bold;">
+                    你的答案：<span style="color:${r.isCorrect ? '#2E7D32' : '#C62828'}">${r.userAns || '未答'}</span> 
+                    <span style="margin:0 10px; color:#CCC;">|</span>
+                    正確答案：<span style="color:#2E7D32">${r.correctAns}</span>
+                </div>
             </div>
         `;
     });
+    
     html += `</div>`;
     content.innerHTML = html;
+    
+    // 讓內容回到最上方，方便閱讀
+    content.scrollTop = 0;
 }
 
         const seedData = [
@@ -1023,6 +1037,75 @@ function viewRecordDetail(idx) {
         function closeModal() {
             document.getElementById('full-modal').classList.remove('active');
         }
+
+function getPlayerStats() {
+    const totalQuizzes = quizRecords.length;
+    let totalCorrect = 0;
+    let totalQs = 0;
+
+    quizRecords.forEach(rec => {
+        totalCorrect += rec.correctCount;
+        totalQs += rec.totalCount;
+    });
+
+    const accuracy = totalQs > 0 ? Math.round((totalCorrect / totalQs) * 100) : 0;
+    
+    return {
+        count: totalQuizzes,
+        accuracy: accuracy + "%"
+    };
+}
+
+function renderPlayerPage(container) {
+    const stats = getPlayerStats();
+    
+    // 假設你的金錢存在 s.money，收穫次數存在 s.harvestCount
+    // 如果變數名稱不同，請自行替換
+    const money = (typeof s !== 'undefined') ? s.money : 0;
+    const harvestCount = (typeof s !== 'undefined') ? (s.harvestCount || 0) : 0;
+
+    container.innerHTML = `
+        <div style="padding: 20px; background: #FFFDF9;">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <div style="width: 80px; height: 80px; background: #FFD1DC; border-radius: 50%; margin: 0 auto 10px; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; font-size: 2rem;">
+                    🎓
+                </div>
+                <h3 style="margin: 0; color: #5D4037;">專業國考訓練家</h3>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                
+                <div style="background: white; padding: 15px; border-radius: 20px; border: 1px solid #FFE0B2; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                    <div style="font-size: 0.8rem; color: #FFA000; margin-bottom: 5px;">💰 當前金錢</div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: #E65100;">$${money.toLocaleString()}</div>
+                </div>
+
+                <div style="background: white; padding: 15px; border-radius: 20px; border: 1px solid #E1F5FE; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                    <div style="font-size: 0.8rem; color: #0288D1; margin-bottom: 5px;">✍️ 作答次數</div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: #01579B;">${stats.count} 次</div>
+                </div>
+
+                <div style="background: white; padding: 15px; border-radius: 20px; border: 1px solid #E8F5E9; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                    <div style="font-size: 0.8rem; color: #43A047; margin-bottom: 5px;">🎯 總答對率</div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: #1B5E20;">${stats.accuracy}</div>
+                </div>
+
+                <div style="background: white; padding: 15px; border-radius: 20px; border: 1px solid #F3E5F5; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                    <div style="font-size: 0.8rem; color: #8E24AA; margin-bottom: 5px;">🌿 收穫次數</div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: #4A148C;">${harvestCount} 次</div>
+                </div>
+
+            </div>
+
+            <div style="margin-top: 30px; padding: 15px; background: #f0f0f0; border-radius: 15px; font-size: 0.85rem; color: #777; line-height: 1.5;">
+                提示：多做測驗賺取金錢，可以購買更多稀有種子來裝飾你的秘密花園喔！
+            </div>
+
+            <button onclick="closeModal()" style="width: 100%; margin-top: 25px; padding: 15px; background: #5D4037; color: white; border: none; border-radius: 15px; font-weight: bold; font-size: 1rem;">返回</button>
+        </div>
+    `;
+}
+        
     </script>
 </body>
 </html>
