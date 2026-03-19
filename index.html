@@ -362,29 +362,27 @@ function openModal(type) {
     content.innerHTML = '';
 
     if (type === 'bank') {
-        // --- 題庫管理邏輯 ---
         title.innerText = "題庫管理";
         renderBankList(content);
-        } else if (type === 'exam') {
+    } else if (type === 'exam') {
         title.innerText = "考卷管理";
         renderExamList(content);
-        } else if (type === 'quiz') {
+    } else if (type === 'quiz') {
         title.innerText = "開始測驗";
-    renderQuizSettings(content);
-        } else if (type === 'wrong') {
+        renderQuizSettings(content);
+    } else if (type === 'wrong') {
         title.innerText = "錯題與紀錄";
-    renderWrongArea(content);
-        } else if (type === 'player') {
+        renderWrongArea(content);
+    } else if (type === 'player') {
         title.innerText = "訓練家資訊";
-    renderPlayerPage(content);
-        } else if (type === 'bag') {
+        renderPlayerPage(content);
+    } else if (type === 'bag') {
         title.innerText = "我的背包";
-    renderBackpack(content);
+        renderBackpack(content);
     } else if (type === 'seed') {
         title.innerText = "選擇種子";
         let html = '<div class="seed-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:10px;">';
         
-        // 使用 index 來追蹤點選的是哪一個
         seedData.forEach((s, index) => {
             html += `
             <div class="seed-card" onclick="plantSeed(${index})" style="background:white; padding:15px; border-radius:15px; border:1px solid #EEE; text-align:center; cursor:pointer;">
@@ -395,7 +393,6 @@ function openModal(type) {
         });
         html += '</div>';
         content.innerHTML = html;
-    }
     } else {
         // --- 其他預設邏輯 ---
         title.innerText = type.toUpperCase();
@@ -404,7 +401,6 @@ function openModal(type) {
 
     modal.classList.add('active');
 }
-
 // 3. 確保 renderBankList 包含 HTML 結構
 function renderBankList(container) {
     let listHtml = `
@@ -1053,15 +1049,23 @@ function plantSeed(index) {
         return;
     }
     
-    const seed = seedData[index];
+    // --- 安全檢查：確保 index 是數字 ---
+    const idx = parseInt(index);
+    const seed = seedData[idx];
+
+    // --- 安全檢查：確保真的有抓到這顆種子 ---
+    if (!seed) {
+        console.error("找不到種子資料");
+        return;
+    }
+    
     gardenState.isPlanted = true;
     gardenState.currentPlant = seed;
     gardenState.progress = 0;
     
-    // 渲染土丘：顯示種子或幼苗 (這裡先用種子圖示)
     updateGardenUI();
     closeModal();
-    alert(`成功播種了 ${seed.n}！`);
+    // alert(`成功播種了 ${seed.n}！`); // 如果覺得彈窗太煩可以註解掉
 }
 
 // --- 澆水/播種/曬太陽 行動 ---
@@ -1094,24 +1098,30 @@ function action(type) {
 // --- 更新花園畫面 ---
 function updateGardenUI() {
     const soil = document.getElementById('garden-soil');
-    if (!gardenState.isPlanted) {
-        soil.innerHTML = ''; // 空土丘
+    if (!soil) return; // 確保土丘元素存在
+
+    // --- 加強檢查：如果沒種植，或資料還沒載入成功，就顯示空土丘 ---
+    if (!gardenState.isPlanted || !gardenState.currentPlant) {
+        soil.innerHTML = ''; 
         return;
     }
 
-    // 根據進度調整透明度或大小，模擬生長
+    // 根據進度計算視覺數值
     const opacity = 0.3 + (gardenState.progress / 100) * 0.7;
     const scale = 0.5 + (gardenState.progress / 100) * 0.5;
     
+    // 渲染植物內容
     soil.innerHTML = `
-        <div onclick="checkHarvest()" style="cursor:pointer; display:flex; flex-direction:column; align-items:center;">
-            <span style="font-size:3.5rem; transform:translateY(-25px) scale(${scale}); opacity:${opacity}; transition:all 0.3s;">
+        <div onclick="checkHarvest()" style="cursor:pointer; display:flex; flex-direction:column; align-items:center; user-select:none;">
+            <span style="font-size:3.5rem; transform:translateY(-25px) scale(${scale}); opacity:${opacity}; transition:all 0.4s ease-out; display:inline-block;">
                 ${gardenState.currentPlant.i}
             </span>
-            <div style="width:60px; height:8px; background:#EEE; border-radius:4px; margin-top:-20px; border:1px solid #DDD;">
-                <div style="width:${gardenState.progress}%; height:100%; background:#81C784; border-radius:4px; transition:width 0.3s;"></div>
+            
+            <div style="width:60px; height:8px; background:#EEE; border-radius:4px; margin-top:-20px; border:1px solid #DDD; overflow:hidden;">
+                <div style="width:${gardenState.progress}%; height:100%; background:#81C784; transition:width 0.3s ease;"></div>
             </div>
-            <div style="font-size:0.7rem; color:#888;">${gardenState.progress}%</div>
+            
+            <div style="font-size:0.7rem; color:#888; margin-top:2px;">${gardenState.progress}%</div>
         </div>
     `;
 }
