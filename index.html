@@ -377,6 +377,9 @@ function openModal(type) {
         } else if (type === 'player') {
         title.innerText = "訓練家資訊";
     renderPlayerPage(content);
+        } else if (type === 'bag') {
+        title.innerText = "我的背包";
+    renderBackpack(content);
     } else if (type === 'seed') {
         // --- 種子選擇邏輯 ---
         title.innerText = "選擇種子";
@@ -1016,27 +1019,158 @@ function viewRecordDetail(idx) {
     content.scrollTop = 0;
 }
 
-        const seedData = [
-            {n:'向日葵', i:'🌻', c:5}, {n:'鬱金香', i:'🌷', c:2},
-            {n:'玫瑰花', i:'🌹', c:1}, {n:'櫻花樹', i:'🌸', c:8},
-            {n:'扶桑花', i:'🌺', c:3}, {n:'雛菊花', i:'🌼', c:10},
-            {n:'四葉草', i:'🍀', c:0}, {n:'仙人掌', i:'🌵', c:4},
-            {n:'薰衣草', i:'🌿', c:6}, {n:'奇幻菇', i:'🍄', c:1}
-        ];
+        // 擴充後的種子資料 (10種)
+const seedData = [
+    {n:'向日葵', i:'🌻', c:5}, {n:'鬱金香', i:'🌷', c:2},
+    {n:'玫瑰花', i:'🌹', c:1}, {n:'櫻花樹', i:'🌸', c:8},
+    {n:'扶桑花', i:'🌺', c:3}, {n:'雛菊花', i:'🌼', c:10},
+    {n:'四葉草', i:'🍀', c:0}, {n:'仙人掌', i:'🌵', c:4},
+    {n:'薰衣草', i:'🌿', c:6}, {n:'奇幻菇', i:'🍄', c:1}
+];
 
-        function action(type) {
-            alert('你對小土丘進行了：' + type);
-            // 這裡未來可以加入土丘顏色變深或出現水滴動畫的邏輯
-        }
+// 目前土丘的狀態
+let gardenState = {
+    isPlanted: false,
+    currentPlant: null,
+    progress: 0
+};
 
+// 玩家背包與數據 (如果還沒定義請加上)
+if (typeof s === 'undefined') {
+    var s = {
+        money: 100,
+        harvestCount: 0,
+        backpack: [] // 存放收穫的植物名稱
+    };
+}
+
+        // --- 播種功能 ---
+function plantSeed(index) {
+    if (gardenState.isPlanted) {
+        alert("土丘已經有植物了，先把它養大收穫吧！");
+        return;
+    }
     
-        function plantSeed(img) {
-            document.getElementById('garden-soil').innerHTML = `<span style="font-size:3.5rem; transform:translateY(-25px);">${img}</span>`;
-        }
+    const seed = seedData[index];
+    gardenState.isPlanted = true;
+    gardenState.currentPlant = seed;
+    gardenState.progress = 0;
+    
+    // 渲染土丘：顯示種子或幼苗 (這裡先用種子圖示)
+    updateGardenUI();
+    closeModal();
+    alert(`成功播種了 ${seed.n}！`);
+}
 
+// --- 澆水/播種/曬太陽 行動 ---
+function action(type) {
+    if (!gardenState.isPlanted) {
+        alert("這裡空空的，先去商店買種子來播種吧！");
+        return;
+    }
+    
+    // 檢查金錢是否足夠
+    if (s.money < 10) {
+        alert("金錢不足！快去答題區賺錢吧。");
+        return;
+    }
+
+    // 扣錢與增加進度
+    s.money -= 10;
+    gardenState.progress += 10;
+    if (gardenState.progress > 100) gardenState.progress = 100;
+
+    // 更新介面
+    updateGardenUI();
+    
+    // 如果滿 100% 提示可以採集
+    if (gardenState.progress === 100) {
+        alert(`${gardenState.currentPlant.n} 已經成熟了！點擊土丘進行收穫。`);
+    }
+}
+
+// --- 更新花園畫面 ---
+function updateGardenUI() {
+    const soil = document.getElementById('garden-soil');
+    if (!gardenState.isPlanted) {
+        soil.innerHTML = ''; // 空土丘
+        return;
+    }
+
+    // 根據進度調整透明度或大小，模擬生長
+    const opacity = 0.3 + (gardenState.progress / 100) * 0.7;
+    const scale = 0.5 + (gardenState.progress / 100) * 0.5;
+    
+    soil.innerHTML = `
+        <div onclick="checkHarvest()" style="cursor:pointer; display:flex; flex-direction:column; align-items:center;">
+            <span style="font-size:3.5rem; transform:translateY(-25px) scale(${scale}); opacity:${opacity}; transition:all 0.3s;">
+                ${gardenState.currentPlant.i}
+            </span>
+            <div style="width:60px; height:8px; background:#EEE; border-radius:4px; margin-top:-20px; border:1px solid #DDD;">
+                <div style="width:${gardenState.progress}%; height:100%; background:#81C784; border-radius:4px; transition:width 0.3s;"></div>
+            </div>
+            <div style="font-size:0.7rem; color:#888;">${gardenState.progress}%</div>
+        </div>
+    `;
+}
+
+// --- 檢查並收穫 ---
+function checkHarvest() {
+    if (gardenState.isPlanted && gardenState.progress >= 100) {
+        const plant = gardenState.currentPlant;
+        
+        // 1. 同步玩家數據
+        s.harvestCount++;
+        s.backpack.push({ name: plant.n, icon: plant.i, date: new Date().toLocaleDateString() });
+        
+        // 2. 重置土丘
+        alert(`恭喜！收穫了漂亮的 ${plant.n}！收穫次數 +1`);
+        gardenState.isPlanted = false;
+        gardenState.currentPlant = null;
+        gardenState.progress = 0;
+        
+        updateGardenUI();
+        
+        // 如果有存檔機制，記得執行 saveGame();
+    }
+}
+function renderBackpack(container) {
+    if (s.backpack.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:40px; color:#AAA;">背包是空的，快去種花吧！</div>`;
+        return;
+    }
+
+    let html = `<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:10px;">`;
+    s.backpack.forEach(item => {
+        html += `
+            <div style="background:white; padding:15px; border-radius:15px; border:1px solid #EEE; text-align:center;">
+                <div style="font-size:2.5rem; margin-bottom:5px;">${item.icon}</div>
+                <div style="font-weight:bold; font-size:0.9rem;">${item.name}</div>
+                <div style="font-size:0.7rem; color:#CCC;">${item.date}</div>
+            </div>
+        `;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+}
         function closeModal() {
-            document.getElementById('full-modal').classList.remove('active');
-        }
+    const modal = document.getElementById('full-modal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+    
+    // 額外小優化：每次關閉視窗時，順便更新一次主畫面的顯示資訊
+    // 例如：更新主畫面上的金錢顯示 (假設你有一個 id 為 top-money 的元素)
+    updateMainUI(); 
+}
+
+// 建立一個更新主畫面的函式，確保數據同步
+function updateMainUI() {
+    const moneyDisplay = document.getElementById('top-money');
+    if (moneyDisplay && typeof s !== 'undefined') {
+        moneyDisplay.innerText = `$${s.money}`;
+    }
+}
 
 function getPlayerStats() {
     const totalQuizzes = quizRecords.length;
