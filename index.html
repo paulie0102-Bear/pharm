@@ -340,6 +340,17 @@ let currentQuiz = {
     examName: ""
 };
         
+let wrongQuestions = []; // 存放所有錯題的集合
+let quizRecords = [];    // 存放歷次答題紀錄
+
+try {
+    wrongQuestions = JSON.parse(localStorage.getItem('myWrongQuestions')) || [];
+    quizRecords = JSON.parse(localStorage.getItem('myQuizRecords')) || [];
+} catch (e) {
+    wrongQuestions = [];
+    quizRecords = [];
+}
+        
 function openModal(type) {
     const modal = document.getElementById('full-modal');
     const title = document.getElementById('modal-title');
@@ -360,6 +371,9 @@ function openModal(type) {
         } else if (type === 'quiz') {
         title.innerText = "開始測驗";
     renderQuizSettings(content);
+        } else if (type === 'wrong') {
+        title.innerText = "錯題與紀錄";
+    renderWrongArea(content);
     } else if (type === 'seed') {
         // --- 種子選擇邏輯 ---
         title.innerText = "選擇種子";
@@ -729,46 +743,229 @@ function finishQuiz() {
     });
 
     const reward = correctCount * 10;
-    // 如果你有全域變數 s，請取消下一行的註解
-    // if (typeof s !== 'undefined') s.money += reward; 
     
+    // 更新玩家金錢 (如果有定義全域變數 s)
+    if (typeof s !== 'undefined') {
+        s.money += reward;
+        // 如果有存檔機制，記得在這裡執行 saveGame();
+    }
+
+    // 1. 提取錯題存入錯題區
+    const currentWrongOnes = results.filter(r => !r.isCorrect);
+    if (currentWrongOnes.length > 0) {
+        const wrongEntry = {
+            id: Date.now(),
+            title: `${currentQuiz.examName}-錯題`,
+            date: new Date().toLocaleDateString(),
+            questions: currentWrongOnes 
+        };
+        wrongQuestions.push(wrongEntry);
+        localStorage.setItem('myWrongQuestions', JSON.stringify(wrongQuestions));
+    }
+
+    // 2. 存入答題紀錄
+    const recordEntry = {
+        id: Date.now(),
+        title: `${new Date().toLocaleDateString()}-${currentQuiz.examName}`,
+        score: Math.round((correctCount/currentQuiz.questions.length)*100),
+        correctCount: correctCount,
+        totalCount: currentQuiz.questions.length,
+        reward: reward,
+        details: results 
+    };
+    quizRecords.push(recordEntry);
+    localStorage.setItem('myQuizRecords', JSON.stringify(quizRecords));
+    
+    // 3. 準備顯示畫面
     const content = document.getElementById('modal-content');
     document.getElementById('modal-title').innerText = "測驗結果";
 
+    // 頂部統計區
     let resultHtml = `
-        <div style="text-align:center; padding:20px; background:#FFF9C4; border-radius:20px; margin-bottom:20px;">
-            <h2 style="color:#F57C00;">得分：${Math.round((correctCount/currentQuiz.questions.length)*100)}</h2>
-            <p>答對題數：${correctCount} / ${currentQuiz.questions.length}</p>
+        <div style="text-align:center; padding:20px; background:#FFF9C4; border-radius:20px; margin-bottom:20px; border:2px solid #FDD835;">
+            <h2 style="color:#F57C00; font-size:1.8rem;">得分：${recordEntry.score}</h2>
+            <p style="margin:5px 0;">答對題數：${correctCount} / ${currentQuiz.questions.length}</p>
             <p style="font-weight:bold; color:#4CAF50; font-size:1.2rem;">💰 獲得金錢：$${reward}</p>
         </div>
-        <div style="font-weight:bold; margin-bottom:10px;">詳解與回顧：</div>
+        <div style="font-weight:bold; margin-bottom:15px; display:flex; align-items:center;">
+            <span style="background:var(--btn-pink); width:5px; height:20px; display:inline-block; margin-right:10px; border-radius:5px;"></span>
+            詳解與回顧
+        </div>
     `;
 
+    // 4. 逐題顯示結果
     results.forEach((r, i) => {
-        // --- 新增：產生 Google 搜尋連結 ---
-        // 擷取題目前 30 個字作為關鍵字，並加上 site:yamol.tw 限制搜尋範圍
         const searchQuery = encodeURIComponent(r.qText.substring(0, 40) + " site:yamol.tw");
         const googleLink = `https://www.google.com/search?q=${searchQuery}`;
+
+        // 加上每 10 題的分隔線 (輔助視覺分頁)
+        if (i > 0 && i % 10 === 0) {
+            resultHtml += `<div style="text-align:center; color:#CCC; font-size:0.8rem; margin:20px 0;">--- 第 ${i+1} 題開始 ---</div>`;
+        }
 
         resultHtml += `
             <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:15px; margin-bottom:15px; font-size:0.9rem; border: 1px solid ${r.isCorrect ? '#C8E6C9' : '#FFCDD2'};">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <strong>第 ${i+1} 題：${r.isCorrect ? '✅' : '❌'}</strong>
-                    ${!r.isCorrect ? `<a href="${googleLink}" target="_blank" style="background:#4285F4; color:white; padding:4px 10px; border-radius:8px; text-decoration:none; font-size:0.75rem; font-weight:bold;">🔍 阿摩詳解</a>` : ''}
+                    <strong style="color:${r.isCorrect ? '#2E7D32' : '#C62828'}">第 ${i+1} 題：${r.isCorrect ? '✅ 正確' : '❌ 錯誤'}</strong>
+                    <a href="${googleLink}" target="_blank" style="background:#4285F4; color:white; padding:5px 12px; border-radius:10px; text-decoration:none; font-size:0.75rem; font-weight:bold; box-shadow:0 2px 4px rgba(66,133,244,0.3);">🔍 阿摩詳解</a>
                 </div>
-                <div style="margin: 8px 0; color:#555; line-height:1.4;">${r.qText}</div>
-                <div style="font-weight:bold;">
-                    你的答案：<span style="color:${r.isCorrect ? '#2E7D32' : '#C62828'}">${r.userAns || '未答'}</span> | 
+                <div style="margin: 10px 0; color:#444; line-height:1.5; word-break:break-all;">${r.qText}</div>
+                <div style="background:rgba(255,255,255,0.5); padding:8px; border-radius:8px; font-weight:bold;">
+                    你的答案：<span style="color:${r.isCorrect ? '#2E7D32' : '#C62828'}">${r.userAns || '未答'}</span> 
+                    <span style="margin:0 10px; color:#CCC;">|</span>
                     正確答案：<span style="color:#2E7D32">${r.correctAns}</span>
                 </div>
             </div>
         `;
     });
 
-    resultHtml += `<button onclick="closeModal()" style="width:100%; padding:15px; background:#5D4037; color:white; border-radius:15px; margin-top:20px; border:none; font-size:1rem; font-weight:bold;">返回花園</button>`;
+    // 底部按鈕
+    resultHtml += `
+        <button onclick="closeModal()" style="width:100%; padding:18px; background:#5D4037; color:white; border-radius:20px; margin-top:20px; border:none; font-size:1.1rem; font-weight:bold; box-shadow:0 4px 0 #3E2723;">
+            返回花園
+        </button>
+        <div style="height:30px;"></div> `;
     
     content.innerHTML = resultHtml;
+    // 自動滾動到最上方看分數
+    content.scrollTop = 0;
 }
+
+function renderWrongArea(container) {
+    container.innerHTML = `
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <button onclick="switchWrongTab('list')" id="tab-list" style="flex:1; padding:10px; border:none; border-bottom:3px solid var(--btn-pink); font-weight:bold; background:none;">錯題列表</button>
+            <button onclick="switchWrongTab('record')" id="tab-record" style="flex:1; padding:10px; border:none; font-weight:bold; background:none; color:#AAA;">答題紀錄</button>
+        </div>
+        <div id="wrong-tab-content"></div>
+    `;
+    switchWrongTab('list');
+}
+
+function switchWrongTab(tab) {
+    const content = document.getElementById('wrong-tab-content');
+    const tabList = document.getElementById('tab-list');
+    const tabRecord = document.getElementById('tab-record');
+
+    if (tab === 'list') {
+        tabList.style.borderBottom = "3px solid var(--btn-pink)";
+        tabList.style.color = "black";
+        tabRecord.style.borderBottom = "none";
+        tabRecord.style.color = "#AAA";
+        renderWrongList(content);
+    } else {
+        tabRecord.style.borderBottom = "3px solid var(--btn-pink)";
+        tabRecord.style.color = "black";
+        tabList.style.borderBottom = "none";
+        tabList.style.color = "#AAA";
+        renderRecordList(content);
+    }
+}
+
+// --- 錯題列表：顯示與匯出 ---
+function renderWrongList(container) {
+    if (wrongQuestions.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:40px; color:#AAA;">目前沒有錯題紀錄</div>`;
+        return;
+    }
+
+    let html = `<p style="font-size:0.8rem; color:#888; margin-bottom:10px;">勾選下方錯題集，匯出成新考卷：</p>`;
+    wrongQuestions.forEach((item, idx) => {
+        html += `
+            <div style="display:flex; align-items:center; background:white; padding:15px; border-radius:15px; margin-bottom:10px; border:1px solid #EEE;">
+                <input type="checkbox" name="exportWrong" value="${idx}" style="width:20px; height:20px; margin-right:15px;">
+                <div style="flex:1;">
+                    <div style="font-weight:bold;">❌ ${item.title}</div>
+                    <div style="font-size:0.75rem; color:#999;">${item.date} | 共 ${item.questions.length} 題</div>
+                </div>
+            </div>
+        `;
+    });
+    html += `<button onclick="exportWrongToExam()" style="width:100%; background:var(--btn-orange); color:white; padding:15px; border-radius:15px; border:none; font-weight:bold; margin-top:10px;">📤 匯出選中錯題為考卷</button>`;
+    container.innerHTML = html;
+}
+
+// --- 答題紀錄：歷史查閱 ---
+function renderRecordList(container) {
+    if (quizRecords.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:40px; color:#AAA;">尚無測驗紀錄</div>`;
+        return;
+    }
+
+    let html = '';
+    quizRecords.forEach((rec, idx) => {
+        html += `
+            <div onclick="viewRecordDetail(${idx})" style="background:white; padding:15px; border-radius:15px; margin-bottom:10px; border:1px solid #EEE; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-weight:bold; color:#5D4037;">📅 ${rec.title}</div>
+                    <div style="font-size:0.75rem; color:#999;">分數：${rec.score} | 獎勵：$${rec.reward}</div>
+                </div>
+                <span style="color:#CCC;">❯</span>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+// 錯題匯出成考卷
+function exportWrongToExam() {
+    const selected = Array.from(document.querySelectorAll('input[name="exportWrong"]:checked')).map(cb => cb.value);
+    if (selected.length === 0) { alert('請至少選擇一個錯題集'); return; }
+
+    const examName = prompt('請輸入新考卷名稱：', '錯題重測-' + new Date().toLocaleDateString());
+    if (!examName) return;
+
+    let combinedQuestions = [];
+    selected.forEach(idx => {
+        // 將錯題格式轉回原本 HTML 解析器能讀的格式（或直接模擬解析後的結構）
+        const entry = wrongQuestions[idx];
+        entry.questions.forEach(q => {
+            // 這裡為了保持系統一致性，我們將其封裝為簡化版 HTML 結構
+            const mockHtml = `<div class="border-b border-gray-200"><div class="text-center">${q.correctAns}</div><div class="break-words">${q.qText}</div></div>`;
+            combinedQuestions.push(mockHtml);
+        });
+    });
+
+    const newExam = {
+        id: Date.now(),
+        name: examName,
+        bankCount: selected.length,
+        totalQuestions: combinedQuestions.length,
+        contents: [combinedQuestions.join('')], // 合併成一個內容
+        date: new Date().toLocaleDateString()
+    };
+
+    myExams.push(newExam);
+    localStorage.setItem('myExams', JSON.stringify(myExams));
+    alert('匯出成功！已放入考卷區。');
+}
+
+// 查看歷史紀錄詳情
+function viewRecordDetail(idx) {
+    const rec = quizRecords[idx];
+    const content = document.getElementById('modal-content');
+    document.getElementById('modal-title').innerText = "測驗紀錄詳情";
+
+    let html = `<div style="padding:10px;"><button onclick="switchWrongTab('record')" style="background:#EEE; border:none; padding:5px 15px; border-radius:10px; margin-bottom:15px;">⬅ 返回紀錄列表</button>`;
+    
+    rec.details.forEach((r, i) => {
+        const searchQuery = encodeURIComponent(r.qText.substring(0, 40) + " site:yamol.tw");
+        const googleLink = `https://www.google.com/search?q=${searchQuery}`;
+        
+        html += `
+            <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:15px; margin-bottom:10px; font-size:0.85rem;">
+                <div style="display:flex; justify-content:space-between;">
+                    <strong>第 ${i+1} 題 ${r.isCorrect ? '✅' : '❌'}</strong>
+                    <a href="${googleLink}" target="_blank" style="color:#4285F4; text-decoration:none; font-size:0.7rem; font-weight:bold;">🔍 阿摩搜尋</a>
+                </div>
+                <div style="margin:5px 0;">${r.qText}</div>
+                <div style="font-weight:bold;">你的答案：${r.userAns || '未答'} | 正確：${r.correctAns}</div>
+            </div>
+        `;
+    });
+    html += `</div>`;
+    content.innerHTML = html;
+}
+
         const seedData = [
             {n:'向日葵', i:'🌻', c:5}, {n:'鬱金香', i:'🌷', c:2},
             {n:'玫瑰花', i:'🌹', c:1}, {n:'櫻花樹', i:'🌸', c:8},
