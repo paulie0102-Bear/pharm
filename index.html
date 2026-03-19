@@ -316,49 +316,71 @@
     </div>
 
     <script>
-// 題庫資料陣列，從本地儲存讀取
-let questionBanks = JSON.parse(localStorage.getItem('myQuestionBanks')) || [];
+// 1. 初始化資料 (確保放在程式碼最上方)
+let questionBanks = [];
+try {
+    const savedData = localStorage.getItem('myQuestionBanks');
+    questionBanks = savedData ? JSON.parse(savedData) : [];
+} catch (e) {
+    console.error("讀取題庫失敗:", e);
+    questionBanks = [];
+}
 
+// 2. 強化版的 openModal
 function openModal(type) {
     const modal = document.getElementById('full-modal');
     const title = document.getElementById('modal-title');
     const content = document.getElementById('modal-content');
-    
-    if(type === 'bank') {
+
+    // 如果找不到容器，在控制台報錯
+    if (!modal || !content) {
+        console.error("找不到 Modal 元素，請檢查 HTML ID 是否正確");
+        return;
+    }
+
+    // 先清空內容，確保乾淨
+    content.innerHTML = '';
+
+    if (type === 'bank') {
         title.innerText = "題庫管理";
+        // 傳入 content 進行渲染
         renderBankList(content);
-    } else if(type === 'seed') {
-        // ... 原本的種子邏輯 ...
+    } else if (type === 'seed') {
+        title.innerText = "種子商店";
+        content.innerHTML = `<div style="text-align:center; padding:50px;">🌱 種子開發中...</div>`;
     } else {
         title.innerText = type.toUpperCase();
         content.innerHTML = `<div style="text-align:center; padding-top:50px;">這是 ${type} 的介面</div>`;
     }
+
     modal.classList.add('active');
 }
 
-// 渲染題庫列表
+// 3. 確保 renderBankList 包含 HTML 結構
 function renderBankList(container) {
     let listHtml = `
-        <div class="bank-header">
-            <label class="upload-label">
-                📂 匯入阿摩 HTML 題庫
+        <div class="bank-header" style="padding: 10px; text-align: center;">
+            <label class="upload-label" style="background: #4CAF50; color: white; padding: 12px 20px; border-radius: 10px; cursor: pointer; display: inline-block; font-weight: bold;">
+                📂 點擊上傳阿摩 HTML 題庫
                 <input type="file" id="fileInput" accept=".html" style="display:none" onchange="handleFileUpload(event)">
             </label>
+            <p style="font-size:0.8rem; color:#888; margin-top:10px;">請選擇從阿摩下載的 .html 檔案</p>
         </div>
+        <hr style="border:0; border-top:1px solid #EEE; margin: 15px 0;">
         <div class="file-list" id="bankItems">
     `;
 
     if (questionBanks.length === 0) {
-        listHtml += `<div style="text-align:center; color:#CCC; padding:40px;">目前沒有題庫。</div>`;
+        listHtml += `<div style="text-align:center; color:#AAA; padding:30px;">目前尚無題庫資料</div>`;
     } else {
         questionBanks.forEach((bank, index) => {
             listHtml += `
-                <div class="file-item">
-                    <div class="file-info">
-                        <span class="file-title">📘 ${bank.title}</span>
-                        <span class="file-date">共 ${bank.count || 0} 題 | 上傳日：${bank.date}</span>
+                <div class="file-item" style="display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; margin-bottom:10px; padding:15px; border-radius:12px; border:1px solid #EEE;">
+                    <div style="text-align:left;">
+                        <div style="font-weight:bold; color:#333;">📘 ${bank.title}</div>
+                        <div style="font-size:0.75rem; color:#999;">${bank.date} | 共 ${bank.count || 0} 題</div>
                     </div>
-                    <button class="delete-btn" onclick="deleteBank(${index})">刪除</button>
+                    <button onclick="deleteBank(${index})" style="background:#FF5252; color:white; border:none; padding:6px 12px; border-radius:8px; cursor:pointer;">刪除</button>
                 </div>
             `;
         });
