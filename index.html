@@ -332,6 +332,13 @@ try {
 } catch (e) {
     myExams = [];
 }
+let currentQuiz = {
+    questions: [],
+    currentIndex: 0,
+    userAnswers: [],
+    examId: null,
+    examName: ""
+};
         
 function openModal(type) {
     const modal = document.getElementById('full-modal');
@@ -350,6 +357,9 @@ function openModal(type) {
         } else if (type === 'exam') {
         title.innerText = "考卷管理";
         renderExamList(content);
+        } else if (type === 'quiz') {
+        title.innerText = "開始測驗";
+    renderQuizSettings(content);
     } else if (type === 'seed') {
         // --- 種子選擇邏輯 ---
         title.innerText = "選擇種子";
@@ -577,7 +587,172 @@ function deleteExam(index) {
         renderExamList(document.getElementById('modal-content'));
     }
 }
-        
+
+function renderQuizSettings(container) {
+    if (myExams.length === 0) {
+        container.innerHTML = `<div style="text-align:center; color:#AAA; padding:40px;">請先到「考卷區」生成考卷。</div>`;
+        return;
+    }
+
+    let examOptions = myExams.map((ex, i) => `<option value="${i}">${ex.name} (${ex.totalQuestions}題)</option>`).join('');
+
+    container.innerHTML = `
+        <div style="padding:15px; display:flex; flex-direction:column; gap:20px;">
+            <div>
+                <p style="font-weight:bold; margin-bottom:8px;">1. 選擇出題範圍</p>
+                <select id="quizScope" style="width:100%; padding:12px; border-radius:10px; border:1px solid #DDD;">${examOptions}</select>
+            </div>
+            <div>
+                <p style="font-weight:bold; margin-bottom:8px;">2. 題目順序</p>
+                <div style="display:flex; gap:10px;">
+                    <button class="opt-btn active" id="orderNormal" onclick="setOrder(false)" style="flex:1; padding:10px; border-radius:10px; border:1px solid #4CAF50;">按照題序</button>
+                    <button class="opt-btn" id="orderRandom" onclick="setOrder(true)" style="flex:1; padding:10px; border-radius:10px; border:1px solid #EEE;">打亂題序</button>
+                </div>
+            </div>
+            <div>
+                <p style="font-weight:bold; margin-bottom:8px;">3. 本次測驗題數</p>
+                <input type="number" id="quizCount" value="10" min="1" style="width:100%; padding:12px; border-radius:10px; border:1px solid #DDD;">
+            </div>
+            <button onclick="startQuiz()" style="width:100%; background:#4CAF50; color:white; padding:15px; border-radius:15px; font-size:1.2rem; font-weight:bold; margin-top:10px; border:none; box-shadow:0 4px 0 #2E7D32;">🚀 開始答題</button>
+        </div>
+    `;
+}
+
+let isRandom = false;
+function setOrder(random) {
+    isRandom = random;
+    document.getElementById('orderNormal').style.border = random ? '1px solid #EEE' : '1px solid #4CAF50';
+    document.getElementById('orderRandom').style.border = random ? '1px solid #4CAF50' : '1px solid #EEE';
+    document.getElementById('orderNormal').classList.toggle('active', !random);
+    document.getElementById('orderRandom').classList.toggle('active', random);
+}
+function startQuiz() {
+    const examIndex = document.getElementById('quizScope').value;
+    const targetCount = parseInt(document.getElementById('quizCount').value);
+    const selectedExam = myExams[examIndex];
+
+    // 1. 從所有 HTML 內容中解析出所有題目
+    let allQuestions = [];
+    selectedExam.contents.forEach(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const items = doc.querySelectorAll('.border-b.border-gray-200');
+        items.forEach(item => {
+            const ans = item.querySelector('.text-center')?.innerText.trim();
+            const text = item.querySelector('.break-words')?.innerText.trim();
+            if (text) allQuestions.push({ answer: ans, text: text });
+        });
+    });
+
+    // 2. 處理隨機
+    if (isRandom) allQuestions.sort(() => Math.random() - 0.5);
+
+    // 3. 擷取本次要做的題目
+    const quizQuestions = allQuestions.slice(0, targetCount);
+    const remainingQuestions = allQuestions.slice(targetCount);
+
+    // 4. 更新考卷區 (覆蓋進度)
+    if (remainingQuestions.length > 0) {
+        // 將剩餘題目封裝回原本的考卷 (這裡簡化處理，將剩餘題目存為文字描述)
+        selectedExam.totalQuestions = remainingQuestions.length;
+        // 注意：為了簡化，這裡建議將解析後的結構存起來，或重新生成簡化版 HTML
+        // 這裡暫時更新題數，讓使用者知道考卷變少了
+        myExams[examIndex].totalQuestions = remainingQuestions.length;
+        localStorage.setItem('myExams', JSON.stringify(myExams));
+    } else {
+        // 如果全做完了，刪除該考卷
+        myExams.splice(examIndex, 1);
+        localStorage.setItem('myExams', JSON.stringify(myExams));
+    }
+
+    // 5. 初始化測驗狀態
+    currentQuiz.questions = quizQuestions;
+    currentQuiz.currentIndex = 0;
+    currentQuiz.userAnswers = new Array(quizQuestions.length).fill(null);
+    currentQuiz.examName = selectedExam.name;
+
+    renderQuestion();
+}
+
+function renderQuestion() {
+    const q = currentQuiz.questions[currentQuiz.currentIndex];
+    const content = document.getElementById('modal-content');
+    const isLast = currentQuiz.currentIndex === currentQuiz.questions.length - 1;
+
+    content.innerHTML = `
+        <div style="padding:10px; position:relative;">
+            <div style="position:absolute; right:10px; top:0; color:#888; font-weight:bold;">
+                ${currentQuiz.currentIndex + 1} / ${currentQuiz.questions.length}
+            </div>
+            <div style="margin-top:30px; font-size:1.1rem; line-height:1.6; color:#333; min-height:150px;">
+                ${q.text}
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:20px;">
+                ${['A', 'B', 'C', 'D'].map(opt => `
+                    <button onclick="selectAnswer('${opt}')" style="padding:15px; border-radius:12px; border:2px solid ${currentQuiz.userAnswers[currentQuiz.currentIndex] === opt ? '#4CAF50' : '#EEE'}; background:white; font-weight:bold;">
+                        ${opt}
+                    </button>
+                `).join('')}
+            </div>
+
+            <div style="display:flex; justify-content:space-between; margin-top:40px; gap:15px;">
+                <button onclick="prevQ()" style="flex:1; padding:12px; border-radius:10px; background:#DDD; border:none;" ${currentQuiz.currentIndex === 0 ? 'disabled' : ''}>上一題</button>
+                ${isLast 
+                    ? `<button onclick="finishQuiz()" style="flex:2; padding:12px; border-radius:10px; background:#FF9800; color:white; border:none; font-weight:bold;">答題完成，批改</button>`
+                    : `<button onclick="nextQ()" style="flex:1; padding:12px; border-radius:10px; background:var(--btn-blue); color:white; border:none;">下一題</button>`
+                }
+            </div>
+        </div>
+    `;
+}
+
+function selectAnswer(ans) {
+    currentQuiz.userAnswers[currentQuiz.currentIndex] = ans;
+    renderQuestion();
+}
+
+function nextQ() { if(currentQuiz.currentIndex < currentQuiz.questions.length - 1) { currentQuiz.currentIndex++; renderQuestion(); } }
+function prevQ() { if(currentQuiz.currentIndex > 0) { currentQuiz.currentIndex--; renderQuestion(); } }
+
+function finishQuiz() {
+    let correctCount = 0;
+    const results = currentQuiz.questions.map((q, i) => {
+        const isCorrect = q.answer === currentQuiz.userAnswers[i];
+        if (isCorrect) correctCount++;
+        return { qText: q.text, userAns: currentQuiz.userAnswers[i], correctAns: q.answer, isCorrect: isCorrect };
+    });
+
+    const reward = correctCount * 10;
+    // 這裡應更新你的玩家金錢變數，例如：s.money += reward;
+    
+    const content = document.getElementById('modal-content');
+    document.getElementById('modal-title').innerText = "測驗結果";
+
+    let resultHtml = `
+        <div style="text-align:center; padding:20px; background:#FFF9C4; border-radius:20px; margin-bottom:20px;">
+            <h2 style="color:#F57C00;">得分：${Math.round((correctCount/currentQuiz.questions.length)*100)}</h2>
+            <p>答對題數：${correctCount} / ${currentQuiz.questions.length}</p>
+            <p style="font-weight:bold; color:#4CAF50; font-size:1.2rem;">💰 獲得金錢：$${reward}</p>
+        </div>
+        <div style="font-weight:bold; margin-bottom:10px;">詳解與回顧：</div>
+    `;
+
+    // 每 10 題一頁的簡易呈現
+    results.forEach((r, i) => {
+        resultHtml += `
+            <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:10px; margin-bottom:10px; font-size:0.9rem;">
+                <strong>第 ${i+1} 題：${r.isCorrect ? '✅' : '❌'}</strong><br>
+                你的答案：${r.userAns || '未答'} | 正確答案：${r.correctAns}
+            </div>
+        `;
+    });
+
+    resultHtml += `<button onclick="closeModal()" style="width:100%; padding:15px; background:#5D4037; color:white; border-radius:15px; margin-top:20px; border:none;">返回花園</button>`;
+    
+    content.innerHTML = resultHtml;
+}
+
         const seedData = [
             {n:'向日葵', i:'🌻', c:5}, {n:'鬱金香', i:'🌷', c:2},
             {n:'玫瑰花', i:'🌹', c:1}, {n:'櫻花樹', i:'🌸', c:8},
