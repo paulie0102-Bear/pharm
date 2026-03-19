@@ -3,27 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Secret Garden - 小花圃</title>
+    <title>Secret Garden - 秘密花園答題系統</title>
     <style>
         :root {
             --sky-blue: #87CEEB;
             --sky-gradient: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 100%);
             --soil-brown: #8D6E63;
-            --soil-border: #A1887F;
+            --soil-dark: #6D4C41;
             --btn-pink: #FFB6C1;
-            --btn-pink-dark: #FF9EAE;
             --btn-green: #81C784;
+            --btn-blue: #64B5F6;
+            --btn-orange: #FFB74D;
+            --btn-yellow: #FFF176;
             --text-color: #5D4037;
-            --modal-bg: #FFF9F0;
-            --card-bg: rgba(255, 255, 255, 0.8);
+            --modal-bg: #FFFDF9;
         }
 
+        /* 基礎設定 */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'PingFang TC', 'Heiti TC', sans-serif; /* 針對 iOS/Android 優化字體 */
-            -webkit-tap-highlight-color: transparent; /* 移除手機點擊高亮色 */
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
         body {
@@ -34,132 +37,141 @@
             background-color: var(--sky-blue);
         }
 
-        /* --- 遊戲主畫面：藍天白雲花圃 --- */
+        /* --- 主畫面區域 --- */
         .game-scene {
             flex: 1;
             background: var(--sky-gradient);
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center; /* 內容垂直置中 */
+            justify-content: center; /* 確保內容在螢幕正中間 */
             position: relative;
             padding-top: env(safe-area-inset-top);
         }
 
-        /* 雲朵 (CSS 繪製) */
+        /* 動態雲朵 */
         .cloud {
             position: absolute;
             background: white;
             border-radius: 50px;
-            opacity: 0.9;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            opacity: 0.8;
             animation: cloudFloat 20s linear infinite;
         }
-        .cloud::after, .cloud::before {
-            content: '';
-            position: absolute;
-            background: white;
-            border-radius: 50%;
-        }
-        .cloud.c1 { width: 80px; height: 30px; top: 15%; left: 10%; animation-duration: 25s; }
-        .cloud.c1::after { width: 40px; height: 40px; top: -20px; left: 10px; }
-        .cloud.c1::before { width: 30px; height: 30px; top: -10px; left: 40px; }
-
-        .cloud.c2 { width: 100px; height: 40px; top: 10%; left: 60%; opacity: 0.8; animation-duration: 18s; animation-delay: -5s;}
-        .cloud.c2::after { width: 50px; height: 50px; top: -25px; left: 15px; }
-        .cloud.c2::before { width: 35px; height: 35px; top: -15px; left: 50px; }
+        .cloud::before, .cloud::after { content: ''; position: absolute; background: white; border-radius: 50%; }
+        .c1 { width: 80px; height: 30px; top: 10%; left: -100px; animation-duration: 25s; }
+        .c1::before { width: 40px; height: 40px; top: -20px; left: 10px; }
+        .c2 { width: 120px; height: 40px; top: 15%; left: -150px; animation-duration: 35s; animation-delay: -10s; }
+        .c2::before { width: 60px; height: 60px; top: -30px; left: 20px; }
 
         @keyframes cloudFloat {
-            from { transform: translateX(-150px); }
-            to { transform: translateX(calc(100vw + 150px)); }
+            from { transform: translateX(-100px); }
+            to { transform: translateX(calc(100vw + 200px)); }
         }
 
-        /* 置中的單個小花圃 */
-        .garden-container {
+        /* 螢幕正中央的養成區 */
+        .center-stage {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 20px;
+            gap: 30px;
+            z-index: 2;
         }
 
-        .garden-bed {
-            width: 150px;
-            height: 100px;
+        /* 小土丘設計 */
+        .soil-mound {
+            width: 180px;
+            height: 60px;
             background: var(--soil-brown);
-            border: 6px solid var(--soil-border);
-            border-radius: 20px;
-            box-shadow: inset 0 5px 10px rgba(0,0,0,0.2), 0 5px 15px rgba(0,0,0,0.1);
+            border-radius: 50%; /* 橢圓形土丘 */
+            box-shadow: 
+                inset 0 -10px 15px var(--soil-dark),
+                0 10px 20px rgba(0,0,0,0.1);
             position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        
-        /* 土壤花紋 */
-        .garden-bed::after {
-            content: '．. ．';
+        .soil-mound::after {
+            content: '';
             position: absolute;
-            color: var(--soil-border);
-            font-size: 1.2rem;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            opacity: 0.5;
+            width: 140px;
+            height: 40px;
+            background: rgba(0,0,0,0.05);
+            border-radius: 50%;
+            top: 5px;
         }
 
-        /* 種植按鈕 */
-        .plant-btn {
+        /* 互動按鈕組 (三格) */
+        .action-group {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            width: 280px;
+        }
+
+        .action-btn {
+            border: none;
+            border-radius: 20px;
+            padding: 12px 5px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--text-color);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: transform 0.1s;
+        }
+        .action-btn:active { transform: translateY(3px); box-shadow: none; }
+        
+        .btn-water { background-color: var(--btn-blue); color: white; }
+        .btn-fertilize { background-color: var(--btn-orange); color: white; }
+        .btn-sun { background-color: var(--btn-yellow); }
+
+        .plant-btn-main {
+            margin-top: 10px;
             background: var(--btn-green);
             color: white;
             border: none;
-            padding: 12px 25px;
-            border-radius: 30px;
+            padding: 12px 40px;
+            border-radius: 40px;
             font-size: 1.1rem;
             font-weight: bold;
             box-shadow: 0 5px 0 #66BB6A;
-            cursor: pointer;
-            transition: all 0.1s;
-        }
-        .plant-btn:active {
-            transform: translateY(3px);
-            box-shadow: 0 2px 0 #66BB6A;
         }
 
-        /* --- 底部導覽列 (防誤觸設計) --- */
+        /* --- 雙列導覽列 --- */
         nav {
             background: rgba(255, 255, 255, 0.95);
-            padding: 15px 10px calc(15px + env(safe-area-inset-bottom));
-            border-top: 1px solid #E0E0E0;
+            padding: 15px 12px calc(15px + env(safe-area-inset-bottom));
+            border-top: 1px solid #EEE;
             z-index: 10;
         }
         .nav-row {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-bottom: 8px;
+            gap: 12px;
+            margin-bottom: 12px;
         }
         .nav-row:last-child { margin-bottom: 0; }
         .nav-btn {
             background: white;
             border: 2px solid var(--btn-pink);
-            border-radius: 12px;
-            padding: 8px 0;
+            border-radius: 15px;
+            padding: 10px 0;
             text-align: center;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             font-weight: bold;
             color: var(--text-color);
-            box-shadow: 0 3px 0 var(--btn-pink);
-            transition: all 0.1s;
-        }
-        .nav-btn:active {
-            transform: translateY(2px);
-            box-shadow: 0 1px 0 var(--btn-pink);
+            box-shadow: 0 4px 0 var(--btn-pink);
         }
 
-        /* --- 全螢幕覆蓋視窗 (Modals) --- */
+        /* --- 彈窗 --- */
         .modal {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: var(--modal-bg);
             z-index: 100;
             display: flex;
@@ -169,65 +181,34 @@
             padding-top: env(safe-area-inset-top);
         }
         .modal.active { transform: translateY(0); }
-
         .modal-header {
-            padding: 15px;
+            padding: 18px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid #E0E0E0;
+            border-bottom: 2px dashed var(--btn-pink);
         }
         .back-btn {
             background: var(--btn-pink);
             color: white;
             border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
+            padding: 10px 18px;
+            border-radius: 25px;
             font-weight: bold;
-            font-size: 0.9rem;
         }
-        .modal-body {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto; /* 內容過多時可滾動 */
-        }
+        .modal-body { flex: 1; padding: 20px; overflow-y: auto; }
 
-        /* --- 種子選擇視窗專用樣式 --- */
         .seed-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* 手機端兩列最剛好 */
+            grid-template-columns: 1fr 1fr;
             gap: 15px;
         }
         .seed-card {
-            background: var(--card-bg);
-            border: 2px solid #E0E0E0;
-            border-radius: 15px;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            transition: border-color 0.2s;
-        }
-        .seed-card:active {
-            border-color: var(--btn-green);
             background: white;
-        }
-        .seed-icon {
-            font-size: 3rem;
-            margin-bottom: 10px;
-        }
-        .seed-name {
-            font-weight: bold;
-            color: var(--text-color);
-            margin-bottom: 5px;
-        }
-        .seed-count {
-            font-size: 0.8rem;
-            color: #757575;
-            background: #EEEEEE;
-            padding: 2px 8px;
-            border-radius: 10px;
+            border: 2px solid #F0F0F0;
+            border-radius: 20px;
+            padding: 20px 10px;
+            text-align: center;
         }
     </style>
 </head>
@@ -237,104 +218,87 @@
         <div class="cloud c1"></div>
         <div class="cloud c2"></div>
         
-        <div class="garden-container">
-            <div class="garden-bed"></div>
-            <button class="plant-btn" onclick="openSeedModal()">🌱 種植</button>
+        <div class="center-stage">
+            <div class="soil-mound" id="garden-soil"></div>
+            
+            <div class="action-group">
+                <button class="action-btn btn-water" onclick="action('澆水')"><span>💧</span>澆水</button>
+                <button class="action-btn btn-fertilize" onclick="action('施肥')"><span>💩</span>施肥</button>
+                <button class="action-btn btn-sun" onclick="action('曬太陽')"><span>☀️</span>太陽</button>
+            </div>
+
+            <button class="plant-btn-main" onclick="openModal('seed')">🌱 開始種植</button>
         </div>
     </div>
 
     <nav>
         <div class="nav-row">
-            <div class="nav-btn">🎒背包</div>
-            <div class="nav-btn">🛒商店</div>
-            <div class="nav-btn" style="background: #FFF9C4; border-color: #FFEB3B; box-shadow: 0 3px 0 #FDD835;">📝答題</div>
-            <div class="nav-btn">👤玩家</div>
+            <div class="nav-btn" onclick="openModal('backpack')">🎒 背包</div>
+            <div class="nav-btn" onclick="openModal('shop')">🛒 商店</div>
+            <div class="nav-btn" style="background:#FFF9C4" onclick="openModal('quiz')">📝 答題</div>
+            <div class="nav-btn" onclick="openModal('player')">👤 玩家</div>
         </div>
         <div class="nav-row">
-            <div class="nav-btn">📄考卷</div>
-            <div class="nav-btn">📚題庫</div>
-            <div class="nav-btn">❌錯題</div>
-            <div class="nav-btn">⚙️設定</div>
+            <div class="nav-btn" onclick="openModal('exam')">📄 考卷</div>
+            <div class="nav-btn" onclick="openModal('bank')">📚 題庫</div>
+            <div class="nav-btn" onclick="openModal('wrong')">❌ 錯題</div>
+            <div class="nav-btn" onclick="openModal('settings')">⚙️ 設定</div>
         </div>
     </nav>
 
-    <div id="seed-modal" class="modal">
+    <div id="full-modal" class="modal">
         <div class="modal-header">
-            <h2>選擇種子</h2>
+            <h2 id="modal-title">標題</h2>
             <button class="back-btn" onclick="closeModal()">返回 ↩</button>
         </div>
-        <div class="modal-body">
-            <div class="seed-grid">
-                <div class="seed-card" onclick="selectSeed('🌻 向日葵')">
-                    <div class="seed-icon">🌻</div>
-                    <div class="seed-name">向日葵</div>
-                    <div class="seed-count">擁有: 5</div>
-                </div>
-                <div class="seed-card" onclick="selectSeed('🌷 鬱金香')">
-                    <div class="seed-icon">🌷</div>
-                    <div class="seed-name">鬱金香</div>
-                    <div class="seed-count">擁有: 2</div>
-                </div>
-                <div class="seed-card" onclick="selectSeed('🌹 玫瑰')">
-                    <div class="seed-icon">🌹</div>
-                    <div class="seed-name">玫瑰</div>
-                    <div class="seed-count">擁有: 1</div>
-                </div>
-                <div class="seed-card" onclick="selectSeed('🌸 櫻花')">
-                    <div class="seed-icon">🌸</div>
-                    <div class="seed-name">櫻花</div>
-                    <div class="seed-count">擁有: 8</div>
-                </div>
-                <div class="seed-card" onclick="selectSeed('🌺 扶桑花')">
-                    <div class="seed-icon">🌺</div>
-                    <div class="seed-name">扶桑花</div>
-                    <div class="seed-count">擁有: 3</div>
-                </div>
-                <div class="seed-card" onclick="selectSeed('🌼 雛菊')">
-                    <div class="seed-icon">🌼</div>
-                    <div class="seed-name">雛菊</div>
-                    <div class="seed-count">擁有: 10</div>
-                </div>
-                <div class="seed-card" onclick="selectSeed('🍀 四葉草')">
-                    <div class="seed-icon">🍀</div>
-                    <div class="seed-name">四葉草</div>
-                    <div class="seed-count">擁有: 0</div>
-                </div>
-                <div class="seed-card" onclick="selectSeed('🌵 仙人掌')">
-                    <div class="seed-icon">🌵</div>
-                    <div class="seed-name">仙人掌</div>
-                    <div class="seed-count">擁有: 4</div>
-                </div>
-                <div class="seed-card" onclick="selectSeed('🌿 薰衣草')">
-                    <div class="seed-icon">🌿</div>
-                    <div class="seed-name">薰衣草</div>
-                    <div class="seed-count">擁有: 6</div>
-                </div>
-                <div class="seed-card" onclick="selectSeed('🍄 奇幻菇')">
-                    <div class="seed-icon">🍄</div>
-                    <div class="seed-name">奇幻菇</div>
-                    <div class="seed-count">擁有: 1</div>
-                </div>
-            </div>
-        </div>
+        <div id="modal-content" class="modal-body"></div>
     </div>
 
     <script>
-        function openSeedModal() {
-            document.getElementById('seed-modal').classList.add('active');
+        const seedData = [
+            {n:'向日葵', i:'🌻', c:5}, {n:'鬱金香', i:'🌷', c:2},
+            {n:'玫瑰花', i:'🌹', c:1}, {n:'櫻花樹', i:'🌸', c:8},
+            {n:'扶桑花', i:'🌺', c:3}, {n:'雛菊花', i:'🌼', c:10},
+            {n:'四葉草', i:'🍀', c:0}, {n:'仙人掌', i:'🌵', c:4},
+            {n:'薰衣草', i:'🌿', c:6}, {n:'奇幻菇', i:'🍄', c:1}
+        ];
+
+        function action(type) {
+            alert('你對小土丘進行了：' + type);
+            // 這裡未來可以加入土丘顏色變深或出現水滴動畫的邏輯
+        }
+
+        function openModal(type) {
+            const modal = document.getElementById('full-modal');
+            const title = document.getElementById('modal-title');
+            const content = document.getElementById('modal-content');
+            
+            if(type === 'seed') {
+                title.innerText = "選擇種子";
+                let html = '<div class="seed-grid">';
+                seedData.forEach(s => {
+                    html += `
+                    <div class="seed-card" onclick="plantSeed('${s.i}'); closeModal();">
+                        <span style="font-size:3rem;">${s.i}</span>
+                        <div style="font-weight:bold; margin-top:5px;">${s.n}</div>
+                        <div style="font-size:0.8rem; color:#888;">擁有：${s.c}</div>
+                    </div>`;
+                });
+                html += '</div>';
+                content.innerHTML = html;
+            } else {
+                title.innerText = type.toUpperCase();
+                content.innerHTML = `<div style="text-align:center; padding-top:50px;">這是 ${type} 的介面</div>`;
+            }
+            modal.classList.add('active');
+        }
+
+        function plantSeed(img) {
+            document.getElementById('garden-soil').innerHTML = `<span style="font-size:3.5rem; transform:translateY(-25px);">${img}</span>`;
         }
 
         function closeModal() {
-            document.getElementById('seed-modal').classList.remove('active');
-        }
-
-        function selectSeed(seedName) {
-            // 這裡可以加入判斷數量是否大於 0 的邏輯
-            alert('你選擇了 ' + seedName + '，準備開始種植！(這裡之後可以對接種植邏輯)');
-            closeModal();
-            
-            // 範例：在花圃顯示植物 (這部分功能你說先不要，但我預留好位置了)
-            // document.querySelector('.garden-bed').innerHTML = `<div style="font-size:4rem; text-align:center; line-height:100px;">${seedName.split(' ')[0]}</div>`;
+            document.getElementById('full-modal').classList.remove('active');
         }
     </script>
 </body>
