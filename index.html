@@ -357,8 +357,7 @@ var s = s || {
     backpack: [],
     seeds: {
         '向日葵': 1, '鬱金香': 1, '玫瑰花': 1, '櫻花樹': 0,
-        '扶桑花': 0, '雛菊花': 0, '四葉草': 0, '仙人掌': 0,
-        '薰衣草': 0, '奇幻菇': 0
+        '扶桑花': 0, '雛菊花': 0, '四葉草': 0
     }
 };
 
@@ -368,7 +367,7 @@ try {
         const parsedS = JSON.parse(savedS);
         s = { ...s, ...parsedS };
         // 確保新功能 seeds 存在
-        if (!s.seeds) s.seeds = { '向日葵': 1, '鬱金香': 1, '玫瑰花': 1, '櫻花樹': 0, '扶桑花': 0, '雛菊花': 0, '四葉草': 0, '仙人掌': 0, '薰衣草': 0, '奇幻菇': 0 };
+        if (!s.seeds) s.seeds = { '向日葵': 1, '鬱金香': 1, '玫瑰花': 1, '櫻花樹': 0, '扶桑花': 0, '雛菊花': 0, '四葉草': 0};
     }
 } catch (e) { console.error("玩家數據讀取失敗"); }
 
@@ -454,6 +453,9 @@ function openModal(type) {
     } else if (type === 'shop') {
         title.innerText = "種子商店";
         renderShop(content);
+    } else if (type === 'craft') {
+    title.innerText = "花束合成工坊";
+    renderCraftPage(content);
     } else if (type === 'bag') {
         title.innerText = "我的背包";
         renderBackpack(content);
@@ -1191,13 +1193,132 @@ function viewRecordDetail(idx) {
     content.scrollTop = 0;
 }
 
+// 1. 定義花束配方 (根據你提供的 seedData 名稱)
+const bouquetRecipes = [
+    {
+        id: 'energy',
+        name: '活力能量花束',
+        icon: '💐',
+        img: 'https://paulie0102-Bear.github.io/pharm/bouquet_energy.png',
+        need: { '向日葵': 2, '扶桑花': 1, '雛菊花': 1 },
+        desc: '充滿陽光氣息，讓你精神百倍！'
+    },
+    {
+        id: 'dream',
+        name: '浪漫夢幻花束',
+        icon: '🎀',
+        img: 'https://paulie0102-Bear.github.io/pharm/bouquet_dream.png',
+        need: { '櫻花樹': 2, '鬱金香': 1, '玫瑰花': 1 },
+        desc: '如夢似幻的配色，最適合告白。'
+    },
+    {
+        id: 'success',
+        name: '金榜題名花束',
+        icon: '🏆',
+        img: 'https://paulie0102-Bear.github.io/pharm/bouquet_success.png',
+        need: { '向日葵': 3, '四葉草': 1 },
+        desc: '祝你考試順利，百戰百勝！'
+    },
+    {
+        id: 'grad',
+        name: '畢業快樂花束',
+        icon: '🎓',
+        img: 'https://paulie0102-Bear.github.io/pharm/bouquet_grad.png',
+        need: { '向日葵': 1, '玫瑰花': 2, '雛菊花': 1 },
+        desc: '踏出校門，迎接美好的未來。'
+    }
+];
+
+// 2. 渲染合成頁面
+function renderCraftPage(container) {
+    let html = `<div style="padding:15px;">
+        <p style="text-align:center; color:#888; font-size:0.8rem; margin-bottom:20px;">使用收穫的花朵合成精美花束</p>`;
+
+    bouquetRecipes.forEach(recipe => {
+        // 檢查材料是否足夠
+        let canCraft = true;
+        let ingredientHtml = '';
+        
+        for (let name in recipe.need) {
+            const required = recipe.need[name];
+            // 計算背包中該種花的數量
+            const owned = s.backpack.filter(item => item.name === name).length;
+            if (owned < required) canCraft = false;
+            ingredientHtml += `
+                <span style="color:${owned >= required ? '#4CAF50' : '#FF5252'}; margin-right:8px; font-size:0.8rem;">
+                    ${name} ${owned}/${required}
+                </span>`;
+        }
+
+        html += `
+            <div style="background:white; border-radius:20px; padding:15px; margin-bottom:15px; border:2px solid ${canCraft ? '#FFF9C4' : '#F5F5F5'}; box-shadow:0 4px 10px rgba(0,0,0,0.03);">
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <div style="font-size:2.5rem; background:#FDF5E6; width:60px; height:60px; display:flex; align-items:center; justify-content:center; border-radius:15px;">${recipe.icon}</div>
+                    <div style="flex:1;">
+                        <div style="font-weight:bold; color:#5D4037;">${recipe.name}</div>
+                        <div style="font-size:0.7rem; color:#AAA; margin:4px 0;">${recipe.desc}</div>
+                        <div>${ingredientHtml}</div>
+                    </div>
+                    <button onclick="confirmCraft('${recipe.id}')" 
+                        style="background:${canCraft ? '#FF9800' : '#CCC'}; color:white; border:none; padding:8px 15px; border-radius:10px; font-weight:bold;" 
+                        ${canCraft ? '' : 'disabled'}>合成</button>
+                </div>
+            </div>`;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+// 3. 執行合成動作
+function confirmCraft(id) {
+    const recipe = bouquetRecipes.find(r => r.id === id);
+    if (!recipe) return;
+
+    // 再次確認並扣除
+    for (let name in recipe.need) {
+        let countToRemove = recipe.need[name];
+        while (countToRemove > 0) {
+            const index = s.backpack.findIndex(item => item.name === name);
+            if (index !== -1) {
+                s.backpack.splice(index, 1);
+                countToRemove--;
+            }
+        }
+    }
+
+    // 加入花束到背包
+    const newBouquet = {
+        name: recipe.name,
+        icon: `<img src="${recipe.img}" style="width:50px; height:50px; object-fit:contain;">`,
+        i: recipe.icon, // 備用小圖示
+        date: new Date().toLocaleDateString(),
+        type: 'bouquet'
+    };
+    s.backpack.push(newBouquet);
+
+    // 存檔與動畫
+    if (window.saveGame) saveGame();
+    
+    // 顯示成功畫面
+    const content = document.getElementById('modal-content');
+    content.innerHTML = `
+        <div style="text-align:center; padding:40px 20px;">
+            <div style="font-size:1.2rem; font-weight:bold; color:#FF9800; margin-bottom:20px;">✨ 合成成功 ✨</div>
+            <img src="${recipe.img}" style="width:200px; height:200px; object-fit:contain; filter:drop-shadow(0 10px 20px rgba(0,0,0,0.1));">
+            <h2 style="margin:20px 0; color:#5D4037;">${recipe.name}</h2>
+            <p style="color:#888;">已放入您的背包中</p>
+            <button onclick="openModal('bag')" style="margin-top:30px; padding:12px 30px; background:#5D4037; color:white; border:none; border-radius:15px; font-weight:bold;">查看背包</button>
+        </div>
+    `;
+}
+
         // 擴充後的種子資料 (10種)
 const seedData = [
     {n:'向日葵', i:'🌻', c:5, price: 50}, {n:'鬱金香', i:'🌷', c:2, price: 80},
     {n:'玫瑰花', i:'🌹', c:1, price: 100}, {n:'櫻花樹', i:'🌸', c:8, price: 200},
     {n:'扶桑花', i:'🌺', c:3, price: 80}, {n:'雛菊花', i:'🌼', c:10, price: 80},
-    {n:'四葉草', i:'🍀', c:0, price: 100}, {n:'仙人掌', i:'🌵', c:4, price: 80},
-    {n:'薰衣草', i:'🌿', c:6, price: 100}, {n:'奇幻菇', i:'🍄', c:1, price: 100}
+    {n:'四葉草', i:'🍀', c:0, price: 100}    
 ];
 
 function buySeed(index) {
@@ -1383,9 +1504,17 @@ function checkHarvest() {
 }
 
 function renderBackpack(container) {
+    const headerHtml = `
+        <div style="padding:10px; margin-bottom:15px;">
+            <button onclick="openModal('craft')" style="width:100%; padding:15px; border-radius:15px; background:linear-gradient(135deg, #FF9800, #F44336); color:white; border:none; font-weight:bold; font-size:1rem; box-shadow:0 4px 15px rgba(255,152,0,0.3); cursor:pointer;">
+                ✨ 進入花束合成工坊
+            </button>
+        </div>
+    `;
     // 1. 檢查背包是否為空 (加上一點圖示讓畫面不單調)
-    if (!s.backpack || s.backpack.length === 0) {
-        container.innerHTML = `
+   if (!s.backpack || s.backpack.length === 0) {
+        // 【新增 2】即使背包是空的，也要顯示合成按鈕入口
+        container.innerHTML = headerHtml + `
             <div style="text-align:center; padding:60px 20px; color:#AAA;">
                 <div style="font-size:3.5rem; margin-bottom:15px; opacity:0.3;">🎒</div>
                 <div style="font-weight:bold;">背包是空的</div>
@@ -1395,19 +1524,32 @@ function renderBackpack(container) {
     }
 
     // 2. 開始渲染網格列表
-    let html = `
+    let html = headerHtml + `
         <div style="padding:10px;">
             <p style="font-size:0.75rem; color:#888; margin-bottom:15px; text-align:center;">✨ 已收穫的珍貴花草 ✨</p>
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
     `;
 
-    s.backpack.forEach(item => {
-        // 使用 item.icon (i) 和 item.name (n)
+      s.backpack.forEach(item => {
+        // 1. 判斷是否為花束 (檢查是否包含 <img> 標籤)
+        const isBouquet = typeof item.icon === 'string' && item.icon.includes('<img');
+        
+        // 2. 根據類型決定圖示與樣式
+        // 如果是花束，我們讓它放大 1.5 倍 (scale(1.5))，普通的則維持原樣
+        const displayIcon = isBouquet ? item.icon : (item.icon || item.i);
+        const iconTransform = isBouquet ? 'transform: scale(1.5);' : 'transform: scale(1);';
+
         html += `
-            <div style="background:white; padding:20px 10px; border-radius:20px; border:1px solid #F5F5F5; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
-                <div style="font-size:3rem; margin-bottom:8px; display:inline-block; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.1));">
-                    ${item.icon || item.i} 
+            <div style="background:white; padding:20px 10px; border-radius:20px; border:1px solid ${isBouquet ? '#FFD700' : '#F5F5F5'}; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.03); position:relative;">
+                
+                ${isBouquet ? '<span style="position:absolute; top:8px; right:8px; font-size:0.6rem; background:#FF9800; color:white; padding:2px 5px; border-radius:5px; font-weight:bold;">限量花束</span>' : ''}
+
+                <div style="height:80px; display:flex; align-items:center; justify-content:center; margin-bottom:8px;">
+                    <div style="${iconTransform} filter: drop-shadow(0 4px 4px rgba(0,0,0,0.1)); transition: transform 0.2s;">
+                        ${displayIcon} 
+                    </div>
                 </div>
+                
                 <div style="font-weight:bold; font-size:1rem; color:#5D4037;">${item.name || item.n}</div>
                 <div style="font-size:0.7rem; color:#BDBDBD; margin-top:5px; font-family:monospace;">
                     ${item.date || new Date().toLocaleDateString()}
