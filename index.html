@@ -417,6 +417,7 @@ var gardenState = gardenState || {
     progress: 0
 };
 
+
 // --- 3. 統一存檔函式 (方便後續呼叫) ---
 function saveGame() {
     localStorage.setItem('playerData', JSON.stringify(s));
@@ -798,7 +799,8 @@ function startQuiz() {
     currentQuiz.currentIndex = 0;
     currentQuiz.userAnswers = new Array(quizQuestions.length).fill(null);
     currentQuiz.examName = selectedExam.name;
-
+// 在 startQuiz 函式裡加入這行
+currentQuiz.flagged = new Array(quizQuestions.length).fill(false);
     renderQuestion();
 }
 
@@ -806,12 +808,22 @@ function renderQuestion() {
     const q = currentQuiz.questions[currentQuiz.currentIndex];
     const content = document.getElementById('modal-content');
     const isLast = currentQuiz.currentIndex === currentQuiz.questions.length - 1;
+    const isFlagged = currentQuiz.flagged[currentQuiz.currentIndex];
 
     content.innerHTML = `
         <div style="padding:10px; position:relative;">
-            <div style="position:absolute; right:10px; top:0; color:#888; font-weight:bold;">
+            <div style="position:absolute; right:10px; top:0; display:flex; align-items:center; gap:10px;">
+                <button onclick="toggleFlag()" style="background:${isFlagged ? '#FFEB3B' : 'transparent'}; border:1px solid #CCC; padding:4px 8px; border-radius:5px; font-size:0.8rem; cursor:pointer;">
+                    ${isFlagged ? '🚩 已標記' : '🏳️ 標記'}
+                </button>
+                <span style="color:#888; font-weight:bold;">
                 ${currentQuiz.currentIndex + 1} / ${currentQuiz.questions.length}
             </div>
+            
+        <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin: 15px 0; padding:10px; background:rgba(0,0,0,0.03); border-radius:10px;">
+            ${renderJumpPanel()}
+        </div>
+
             <div style="margin-top:30px; font-size:1.1rem; line-height:1.6; color:#333; min-height:150px;">
                 ${q.text}
             </div>
@@ -833,6 +845,8 @@ function renderQuestion() {
             </div>
         </div>
     `;
+    
+
 }
 
 function selectAnswer(ans) {
@@ -840,31 +854,72 @@ function selectAnswer(ans) {
     renderQuestion();
 }
 
+function toggleFlag() {
+    // 切換當前題目的布林值 (true <-> false)
+    currentQuiz.flagged[currentQuiz.currentIndex] = !currentQuiz.flagged[currentQuiz.currentIndex];
+    renderQuestion(); // 重新渲染畫面
+}
+
 function nextQ() { if(currentQuiz.currentIndex < currentQuiz.questions.length - 1) { currentQuiz.currentIndex++; renderQuestion(); } }
 function prevQ() { if(currentQuiz.currentIndex > 0) { currentQuiz.currentIndex--; renderQuestion(); } }
 
+// 在 renderQuestion 底部可以顯示一個小點矩陣
+function renderJumpPanel() {
+    return currentQuiz.flagged.map((isFlagged, i) => {
+        const isCurrent = currentQuiz.currentIndex === i;
+        const isAnswered = currentQuiz.userAnswers[i] !== null;
+        
+        // 決定顏色邏輯
+        let bgColor = '#EEE'; // 預設淺灰 (未答)
+        if (isAnswered) bgColor = '#BBB'; // 已答 (深灰)
+        if (isFlagged) bgColor = '#FF5252'; // 標記 (紅色)
+        if (isCurrent) bgColor = '#42A5F5'; // 當前 (藍色)
+
+        // 決定邊框 (當前題加個黑框)
+        const border = isCurrent ? '2px solid #333' : 'none';
+
+        return `
+            <div onclick="jumpTo(${i})" 
+                 style="width:12px; height:12px; border-radius:50%; 
+                        background:${bgColor}; border:${border}; 
+                        cursor:pointer; transition: transform 0.1s;"
+                 onmousedown="this.style.transform='scale(0.8)'"
+                 onmouseup="this.style.transform='scale(1)'">
+            </div>
+        `;
+    }).join('');
+}
+
+function jumpTo(index) {
+    currentQuiz.currentIndex = index;
+    renderQuestion();
+}
+
 function finishQuiz() {
     let correctCount = 0;
+    
+    // 1. 處理結果：加入 flagged 狀態
     const results = currentQuiz.questions.map((q, i) => {
         const isCorrect = q.answer === currentQuiz.userAnswers[i];
+        const isFlagged = currentQuiz.flagged[i]; // 取得該題是否有標記
         if (isCorrect) correctCount++;
         return { 
             qText: q.text, 
             userAns: currentQuiz.userAnswers[i], 
             correctAns: q.answer, 
-            isCorrect: isCorrect 
+            isCorrect: isCorrect,
+            isFlagged: isFlagged // 存入結果中
         };
     });
 
     const reward = correctCount * 10;
     
-    // 更新玩家金錢 (如果有定義全域變數 s)
     if (typeof s !== 'undefined') {
         s.money += reward;
-        // 如果有存檔機制，記得在這裡執行 saveGame();
+        if (window.saveGame) saveGame(); 
     }
 
-    // 1. 提取錯題存入錯題區
+    // 2. 存入錯題區 (保持原樣)
     const currentWrongOnes = results.filter(r => !r.isCorrect);
     if (currentWrongOnes.length > 0) {
         const wrongEntry = {
@@ -877,7 +932,7 @@ function finishQuiz() {
         localStorage.setItem('myWrongQuestions', JSON.stringify(wrongQuestions));
     }
 
-    // 2. 存入答題紀錄
+    // 3. 存入紀錄 (增加 flagged 資訊)
     const recordEntry = {
         id: Date.now(),
         title: `${new Date().toLocaleDateString()}-${currentQuiz.examName}`,
@@ -890,11 +945,10 @@ function finishQuiz() {
     quizRecords.push(recordEntry);
     localStorage.setItem('myQuizRecords', JSON.stringify(quizRecords));
     
-    // 3. 準備顯示畫面
+    // 4. 渲染畫面
     const content = document.getElementById('modal-content');
     document.getElementById('modal-title').innerText = "測驗結果";
 
-    // 頂部統計區
     let resultHtml = `
         <div style="text-align:center; padding:20px; background:#FFF9C4; border-radius:20px; margin-bottom:20px; border:2px solid #FDD835;">
             <h2 style="color:#F57C00; font-size:1.8rem;">得分：${recordEntry.score}</h2>
@@ -907,21 +961,26 @@ function finishQuiz() {
         </div>
     `;
 
-    // 4. 逐題顯示結果
     results.forEach((r, i) => {
-        const searchQuery = encodeURIComponent(r.qText.substring(0, 40) + " site:yamol.tw");
+        // 通用搜尋連結 (拿掉阿摩關鍵字)
+        const searchQuery = encodeURIComponent(r.qText.substring(0, 40));
         const googleLink = `https://www.google.com/search?q=${searchQuery}`;
 
-        // 加上每 10 題的分隔線 (輔助視覺分頁)
         if (i > 0 && i % 10 === 0) {
             resultHtml += `<div style="text-align:center; color:#CCC; font-size:0.8rem; margin:20px 0;">--- 第 ${i+1} 題開始 ---</div>`;
         }
 
+        // 核心修改：如果是當初標記的題目，外框加上金黃色
         resultHtml += `
-            <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:15px; margin-bottom:15px; font-size:0.9rem; border: 1px solid ${r.isCorrect ? '#C8E6C9' : '#FFCDD2'};">
+            <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:15px; margin-bottom:15px; font-size:0.9rem; border: 2px solid ${r.isFlagged ? '#FFD600' : (r.isCorrect ? '#C8E6C9' : '#FFCDD2')}; position:relative;">
+                
+                ${r.isFlagged ? `<span style="position:absolute; top:-10px; left:15px; background:#FFD600; color:#000; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🚩 曾標記</span>` : ''}
+
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <strong style="color:${r.isCorrect ? '#2E7D32' : '#C62828'}">第 ${i+1} 題：${r.isCorrect ? '✅ 正確' : '❌ 錯誤'}</strong>
-                    <a href="${googleLink}" target="_blank" style="background:#4285F4; color:white; padding:5px 12px; border-radius:10px; text-decoration:none; font-size:0.75rem; font-weight:bold; box-shadow:0 2px 4px rgba(66,133,244,0.3);">🔍 阿摩詳解</a>
+                    <strong style="color:${r.isCorrect ? '#2E7D32' : '#C62828'}">
+                        第 ${i+1} 題：${r.isCorrect ? '✅ 正確' : '❌ 錯誤'}
+                    </strong>
+                    <a href="${googleLink}" target="_blank" style="background:#4285F4; color:white; padding:5px 12px; border-radius:10px; text-decoration:none; font-size:0.75rem; font-weight:bold;">🔍 搜尋詳解</a>
                 </div>
                 <div style="margin: 10px 0; color:#444; line-height:1.5; word-break:break-all;">${r.qText}</div>
                 <div style="background:rgba(255,255,255,0.5); padding:8px; border-radius:8px; font-weight:bold;">
@@ -933,7 +992,6 @@ function finishQuiz() {
         `;
     });
 
-    // 底部按鈕
     resultHtml += `
         <button onclick="closeModal()" style="width:100%; padding:18px; background:#5D4037; color:white; border-radius:20px; margin-top:20px; border:none; font-size:1.1rem; font-weight:bold; box-shadow:0 4px 0 #3E2723;">
             返回花園
@@ -941,7 +999,6 @@ function finishQuiz() {
         <div style="height:30px;"></div> `;
     
     content.innerHTML = resultHtml;
-    // 自動滾動到最上方看分數
     content.scrollTop = 0;
 }
 
@@ -1095,22 +1152,31 @@ function viewRecordDetail(idx) {
     const rec = quizRecords[idx];
     const content = document.getElementById('modal-content');
     
-    // 設定標題（可以維持原樣，或改為顯示該筆紀錄的名稱）
     document.getElementById('modal-title').innerText = rec.title || "測驗紀錄詳情";
 
     let html = `<div style="padding:10px;">`;
     
     rec.details.forEach((r, i) => {
-        const searchQuery = encodeURIComponent(r.qText.substring(0, 40) + " site:yamol.tw");
+        // 搜尋連結邏輯 (去標籤化)
+        const searchQuery = encodeURIComponent(r.qText.substring(0, 40));
         const googleLink = `https://www.google.com/search?q=${searchQuery}`;
         
+        // 核心修改：如果是當初標記的題目，增加邊框顏色
+        const borderColor = r.isFlagged ? '#FFD600' : (r.isCorrect ? '#C8E6C9' : '#FFCDD2');
+        const borderWidth = r.isFlagged ? '2px' : '1px';
+
         html += `
-            <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:15px; margin-bottom:10px; font-size:0.85rem; border: 1px solid ${r.isCorrect ? '#C8E6C9' : '#FFCDD2'};">
+            <div style="padding:15px; background:${r.isCorrect ? '#E8F5E9' : '#FFEBEE'}; border-radius:15px; margin-bottom:15px; font-size:0.85rem; border: ${borderWidth} solid ${borderColor}; position:relative;">
+                
+                ${r.isFlagged ? `
+                    <span style="position:absolute; top:-10px; left:15px; background:#FFD600; color:#000; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1);">🚩 曾標記</span>
+                ` : ''}
+
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <strong style="color:${r.isCorrect ? '#2E7D32' : '#C62828'}">第 ${i+1} 題 ${r.isCorrect ? '✅' : '❌'}</strong>
-                    <a href="${googleLink}" target="_blank" style="background:#4285F4; color:white; padding:4px 10px; border-radius:8px; text-decoration:none; font-size:0.7rem; font-weight:bold;">🔍 阿摩搜尋</a>
+                    <a href="${googleLink}" target="_blank" style="background:#4285F4; color:white; padding:4px 10px; border-radius:8px; text-decoration:none; font-size:0.7rem; font-weight:bold;">🔍 搜尋詳解</a>
                 </div>
-                <div style="margin:8px 0; color:#444; line-height:1.4;">${r.qText}</div>
+                <div style="margin:8px 0; color:#444; line-height:1.4; word-break:break-all;">${r.qText}</div>
                 <div style="background:rgba(255,255,255,0.5); padding:8px; border-radius:8px; font-weight:bold;">
                     你的答案：<span style="color:${r.isCorrect ? '#2E7D32' : '#C62828'}">${r.userAns || '未答'}</span> 
                     <span style="margin:0 10px; color:#CCC;">|</span>
@@ -1122,8 +1188,6 @@ function viewRecordDetail(idx) {
     
     html += `</div>`;
     content.innerHTML = html;
-    
-    // 讓內容回到最上方，方便閱讀
     content.scrollTop = 0;
 }
 
