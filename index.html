@@ -1235,33 +1235,55 @@ function renderCraftPage(container) {
         <p style="text-align:center; color:#888; font-size:0.8rem; margin-bottom:20px;">使用收穫的花朵合成精美花束</p>`;
 
     bouquetRecipes.forEach(recipe => {
-        // 檢查材料是否足夠
         let canCraft = true;
-        let ingredientHtml = '';
+        
+        // --- 優化：使用 Flexbox 讓材料排整齊 ---
+        let ingredientHtml = '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">';
         
         for (let name in recipe.need) {
             const required = recipe.need[name];
-            // 計算背包中該種花的數量
             const owned = s.backpack.filter(item => item.name === name).length;
-            if (owned < required) canCraft = false;
+            const isEnough = owned >= required;
+            if (!isEnough) canCraft = false;
+
+            // 這裡將每個材料包裝成一個「小卡片」
             ingredientHtml += `
-                <span style="color:${owned >= required ? '#4CAF50' : '#FF5252'}; margin-right:8px; font-size:0.8rem;">
+                <div style="background:${isEnough ? '#E8F5E9' : '#FFF3E0'}; 
+                            color:${isEnough ? '#2E7D32' : '#E65100'}; 
+                            padding:3px 8px; 
+                            border-radius:6px; 
+                            font-size:0.75rem; 
+                            border:1px solid ${isEnough ? '#C8E6C9' : '#FFE0B2'};
+                            display:flex; align-items:center;">
                     ${name} ${owned}/${required}
-                </span>`;
+                </div>`;
         }
+        ingredientHtml += '</div>';
 
         html += `
-            <div style="background:white; border-radius:20px; padding:15px; margin-bottom:15px; border:2px solid ${canCraft ? '#FFF9C4' : '#F5F5F5'}; box-shadow:0 4px 10px rgba(0,0,0,0.03);">
-                <div style="display:flex; align-items:center; gap:15px;">
-                    <div style="font-size:2.5rem; background:#FDF5E6; width:60px; height:60px; display:flex; align-items:center; justify-content:center; border-radius:15px;">${recipe.icon}</div>
-                    <div style="flex:1;">
-                        <div style="font-weight:bold; color:#5D4037;">${recipe.name}</div>
-                        <div style="font-size:0.7rem; color:#AAA; margin:4px 0;">${recipe.desc}</div>
-                        <div>${ingredientHtml}</div>
+            <div style="background:white; border-radius:24px; padding:18px; margin-bottom:15px; border:2px solid ${canCraft ? '#FFECB3' : '#F5F5F5'}; box-shadow:0 6px 15px rgba(0,0,0,0.04);">
+                <div style="display:flex; align-items:flex-start; gap:15px;">
+                    <div style="font-size:2.5rem; background:#FFF8E1; width:70px; height:70px; min-width:70px; display:flex; align-items:center; justify-content:center; border-radius:18px;">
+                        ${recipe.icon}
                     </div>
+                    
+                    <div style="flex:1;">
+                        <div style="font-weight:bold; color:#5D4037; font-size:1.1rem;">${recipe.name}</div>
+                        <div style="font-size:0.75rem; color:#9E9E9E; margin:4px 0;">${recipe.desc}</div>
+                        ${ingredientHtml}
+                    </div>
+                </div>
+
+                <div style="margin-top:15px;">
                     <button onclick="confirmCraft('${recipe.id}')" 
-                        style="background:${canCraft ? '#FF9800' : '#CCC'}; color:white; border:none; padding:8px 15px; border-radius:10px; font-weight:bold;" 
-                        ${canCraft ? '' : 'disabled'}>合成</button>
+                        style="width:100%; background:${canCraft ? 'linear-gradient(135deg, #FFB300, #FF8F00)' : '#ECEFF1'}; 
+                               color:${canCraft ? 'white' : '#B0BEC5'}; 
+                               border:none; padding:10px; border-radius:12px; font-weight:bold; 
+                               box-shadow:${canCraft ? '0 4px 10px rgba(255,179,0,0.3)' : 'none'};
+                               transition: 0.2s active;" 
+                        ${canCraft ? '' : 'disabled'}>
+                        ${canCraft ? '✨ 立即合成' : '材料不足'}
+                    </button>
                 </div>
             </div>`;
     });
@@ -1269,6 +1291,7 @@ function renderCraftPage(container) {
     html += `</div>`;
     container.innerHTML = html;
 }
+
 
 // 3. 執行合成動作
 function confirmCraft(id) {
@@ -1313,7 +1336,7 @@ function confirmCraft(id) {
     `;
 }
 
-        // 擴充後的種子資料 (10種)
+        // 擴充後的種子資料 (7種)
 const seedData = [
     {n:'向日葵', i:'🌻', c:5, price: 50}, {n:'鬱金香', i:'🌷', c:2, price: 80},
     {n:'玫瑰花', i:'🌹', c:1, price: 100}, {n:'櫻花樹', i:'🌸', c:8, price: 200},
@@ -1620,7 +1643,7 @@ function renderPlayerPage(container) {
                 <div style="width: 80px; height: 80px; background: #FFD1DC; border-radius: 50%; margin: 0 auto 10px; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; font-size: 2rem;">
                     🎓
                 </div>
-                <h3 style="margin: 0; color: #5D4037;">專業國考訓練家</h3>
+                <h3 style="margin: 0; color: #5D4037;">專業國考生練習生</h3>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
