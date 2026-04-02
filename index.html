@@ -369,6 +369,12 @@ try {
         // 確保新功能 seeds 存在
         if (!s.seeds) s.seeds = { '向日葵': 1, '鬱金香': 1, '玫瑰花': 1, '櫻花樹': 0, '扶桑花': 0, '雛菊花': 0, '四葉草': 0};
     }
+    
+    const localGarden = localStorage.getItem('myGardenState');
+    if (localGarden) {
+        gardenState = JSON.parse(localGarden);
+        console.log("花園狀態恢復成功！進度：", gardenState.progress);
+    }
 } catch (e) { console.error("玩家數據讀取失敗"); }
 
 // ==========================================
@@ -422,7 +428,11 @@ function saveGame() {
     localStorage.setItem('playerData', JSON.stringify(s));
     localStorage.setItem('myWrongQuestions', JSON.stringify(wrongQuestions));
     localStorage.setItem('myQuizRecords', JSON.stringify(quizRecords));
-    // 考卷與題庫通常在新增時才會存，但也可以放這
+    
+    // --- 新增這行，把花園狀態也寫入手機硬碟 ---
+    localStorage.setItem('myGardenState', JSON.stringify(gardenState));
+    
+    console.log("遊戲已存檔（包含花園進度）");
 }
         
 function openModal(type) {
@@ -1200,7 +1210,7 @@ const bouquetRecipes = [
         name: '活力能量花束',
         icon: '💐',
         img: 'https://paulie0102-Bear.github.io/pharm/bouquet_energy.png',
-        need: { '向日葵': 2, '扶桑花': 1, '鬱金香': 1, '雛菊花': 1 },
+        need: { '向日葵': 2, '扶桑花': 1, '雛菊花': 1 },
         desc: '充滿陽光氣息，讓你精神百倍！'
     },
     {
@@ -1208,7 +1218,7 @@ const bouquetRecipes = [
         name: '浪漫夢幻花束',
         icon: '🎀',
         img: 'https://paulie0102-Bear.github.io/pharm/bouquet_dream.png',
-        need: { '櫻花樹': 2, '鬱金香': 1, '玫瑰花': 2, '扶桑花': 1 },
+        need: { '櫻花樹': 2, '鬱金香': 1, '玫瑰花': 1 },
         desc: '如夢似幻的配色，最適合告白。'
     },
     {
@@ -1216,7 +1226,7 @@ const bouquetRecipes = [
         name: '金榜題名花束',
         icon: '🏆',
         img: 'https://paulie0102-Bear.github.io/pharm/bouquet_success.png',
-        need: { '向日葵': 2, '櫻花樹': 1, '四葉草': 2, '扶桑花': 1 },
+        need: { '向日葵': 3, '四葉草': 1 },
         desc: '祝你考試順利，百戰百勝！'
     },
     {
@@ -1224,7 +1234,7 @@ const bouquetRecipes = [
         name: '畢業快樂花束',
         icon: '🎓',
         img: 'https://paulie0102-Bear.github.io/pharm/bouquet_grad.png',
-        need: { '向日葵': 1, '櫻花樹': 1, '玫瑰花': 2, '雛菊花': 1 },
+        need: { '向日葵': 1, '玫瑰花': 2, '雛菊花': 1 },
         desc: '踏出校門，迎接美好的未來。'
     }
 ];
@@ -1235,55 +1245,33 @@ function renderCraftPage(container) {
         <p style="text-align:center; color:#888; font-size:0.8rem; margin-bottom:20px;">使用收穫的花朵合成精美花束</p>`;
 
     bouquetRecipes.forEach(recipe => {
+        // 檢查材料是否足夠
         let canCraft = true;
-        
-        // --- 優化：使用 Flexbox 讓材料排整齊 ---
-        let ingredientHtml = '<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">';
+        let ingredientHtml = '';
         
         for (let name in recipe.need) {
             const required = recipe.need[name];
+            // 計算背包中該種花的數量
             const owned = s.backpack.filter(item => item.name === name).length;
-            const isEnough = owned >= required;
-            if (!isEnough) canCraft = false;
-
-            // 這裡將每個材料包裝成一個「小卡片」
+            if (owned < required) canCraft = false;
             ingredientHtml += `
-                <div style="background:${isEnough ? '#E8F5E9' : '#FFF3E0'}; 
-                            color:${isEnough ? '#2E7D32' : '#E65100'}; 
-                            padding:3px 8px; 
-                            border-radius:6px; 
-                            font-size:0.75rem; 
-                            border:1px solid ${isEnough ? '#C8E6C9' : '#FFE0B2'};
-                            display:flex; align-items:center;">
+                <span style="color:${owned >= required ? '#4CAF50' : '#FF5252'}; margin-right:8px; font-size:0.8rem;">
                     ${name} ${owned}/${required}
-                </div>`;
+                </span>`;
         }
-        ingredientHtml += '</div>';
 
         html += `
-            <div style="background:white; border-radius:24px; padding:18px; margin-bottom:15px; border:2px solid ${canCraft ? '#FFECB3' : '#F5F5F5'}; box-shadow:0 6px 15px rgba(0,0,0,0.04);">
-                <div style="display:flex; align-items:flex-start; gap:15px;">
-                    <div style="font-size:2.5rem; background:#FFF8E1; width:70px; height:70px; min-width:70px; display:flex; align-items:center; justify-content:center; border-radius:18px;">
-                        ${recipe.icon}
-                    </div>
-                    
+            <div style="background:white; border-radius:20px; padding:15px; margin-bottom:15px; border:2px solid ${canCraft ? '#FFF9C4' : '#F5F5F5'}; box-shadow:0 4px 10px rgba(0,0,0,0.03);">
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <div style="font-size:2.5rem; background:#FDF5E6; width:60px; height:60px; display:flex; align-items:center; justify-content:center; border-radius:15px;">${recipe.icon}</div>
                     <div style="flex:1;">
-                        <div style="font-weight:bold; color:#5D4037; font-size:1.1rem;">${recipe.name}</div>
-                        <div style="font-size:0.75rem; color:#9E9E9E; margin:4px 0;">${recipe.desc}</div>
-                        ${ingredientHtml}
+                        <div style="font-weight:bold; color:#5D4037;">${recipe.name}</div>
+                        <div style="font-size:0.7rem; color:#AAA; margin:4px 0;">${recipe.desc}</div>
+                        <div>${ingredientHtml}</div>
                     </div>
-                </div>
-
-                <div style="margin-top:15px;">
                     <button onclick="confirmCraft('${recipe.id}')" 
-                        style="width:100%; background:${canCraft ? 'linear-gradient(135deg, #FFB300, #FF8F00)' : '#ECEFF1'}; 
-                               color:${canCraft ? 'white' : '#B0BEC5'}; 
-                               border:none; padding:10px; border-radius:12px; font-weight:bold; 
-                               box-shadow:${canCraft ? '0 4px 10px rgba(255,179,0,0.3)' : 'none'};
-                               transition: 0.2s active;" 
-                        ${canCraft ? '' : 'disabled'}>
-                        ${canCraft ? '✨ 立即合成' : '材料不足'}
-                    </button>
+                        style="background:${canCraft ? '#FF9800' : '#CCC'}; color:white; border:none; padding:8px 15px; border-radius:10px; font-weight:bold;" 
+                        ${canCraft ? '' : 'disabled'}>合成</button>
                 </div>
             </div>`;
     });
@@ -1291,7 +1279,6 @@ function renderCraftPage(container) {
     html += `</div>`;
     container.innerHTML = html;
 }
-
 
 // 3. 執行合成動作
 function confirmCraft(id) {
@@ -1336,7 +1323,7 @@ function confirmCraft(id) {
     `;
 }
 
-        // 擴充後的種子資料 (7種)
+        // 擴充後的種子資料 (10種)
 const seedData = [
     {n:'向日葵', i:'🌻', c:5, price: 50}, {n:'鬱金香', i:'🌷', c:2, price: 80},
     {n:'玫瑰花', i:'🌹', c:1, price: 100}, {n:'櫻花樹', i:'🌸', c:8, price: 200},
@@ -1451,7 +1438,7 @@ function action(type) {
 
     // 更新介面
     updateGardenUI();
-    
+    saveGame();
     // 如果滿 100% 提示可以採集
     if (gardenState.progress === 100) {
         alert(`${gardenState.currentPlant.n} 已經成熟了！點擊土丘進行收穫。`);
@@ -1643,7 +1630,7 @@ function renderPlayerPage(container) {
                 <div style="width: 80px; height: 80px; background: #FFD1DC; border-radius: 50%; margin: 0 auto 10px; border: 4px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; font-size: 2rem;">
                     🎓
                 </div>
-                <h3 style="margin: 0; color: #5D4037;">專業國考生練習生</h3>
+                <h3 style="margin: 0; color: #5D4037;">專業國考訓練家</h3>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -1715,7 +1702,9 @@ function exportAllData() {
         myQuestionBanks: JSON.parse(localStorage.getItem('myQuestionBanks')),
         myExams: JSON.parse(localStorage.getItem('myExams')),
         myWrongQuestions: JSON.parse(localStorage.getItem('myWrongQuestions')),
-        myQuizRecords: JSON.parse(localStorage.getItem('myQuizRecords'))
+        myQuizRecords: JSON.parse(localStorage.getItem('myQuizRecords')),
+        // --- 新增這行：匯出花園狀態 ---
+        myGardenState: JSON.parse(localStorage.getItem('myGardenState'))
     };
 
     const dataStr = JSON.stringify(allData, null, 2);
@@ -1748,6 +1737,9 @@ function importAllData(event) {
             if (imported.myExams) localStorage.setItem('myExams', JSON.stringify(imported.myExams));
             if (imported.myWrongQuestions) localStorage.setItem('myWrongQuestions', JSON.stringify(imported.myWrongQuestions));
             if (imported.myQuizRecords) localStorage.setItem('myQuizRecords', JSON.stringify(imported.myQuizRecords));
+            if (data.myGardenState) {
+            localStorage.setItem('myGardenState', JSON.stringify(data.myGardenState));
+        }
 
             alert("資料還原成功！網頁將自動重新整理。");
             location.reload(); // 必須刷新頁面讓變數重新讀取
